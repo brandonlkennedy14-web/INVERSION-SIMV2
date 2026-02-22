@@ -1,0 +1,39 @@
+cat <<EOF > index.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>INVERSION-SIM</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="tab-bar">
+        <div class="tab" onclick="showTab('eyes')">EYES</div>
+        <div class="tab" onclick="showTab('brain')">BRAIN</div>
+        <div class="tab" onclick="showTab('hands')">HANDS</div>
+        <div class="tab" onclick="showTab('hyper')">HYPER</div>
+        <div class="tab active" onclick="showTab('zeta')">ZETA</div>
+    </div>
+
+    <div id="eyes" class="module"><div class="placeholder">NODES: 966</div></div>
+    <div id="brain" class="module"></div>
+    <div id="hands" class="module"></div>
+    <div id="hyper" class="module"></div>
+    
+    <div id="zeta" class="module active">
+        <div id="hud">
+            <b>ZETA SYSTEM</b><br>
+            VY: <input type="number" id="vy-in" value="6.0764" step="0.0001">
+            <button onclick="launchBot()">LAUNCH</button><br><br>
+            WINDING: <span id="ratio">0.0000</span><br>
+            PRECISION: <span id="prec">0.0000</span>
+        </div>
+        <canvas id="z-canvas"></canvas>
+    </div>
+
+    <script src="cloud.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>
+EOF
