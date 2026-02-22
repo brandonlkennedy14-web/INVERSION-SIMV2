@@ -1,104 +1,45 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Symmetry Miner</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { margin: 0; background: #000; color: #0f0; font-family: monospace; display: flex; flex-direction: column; height: 100vh; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; height: 80vh; gap: 2px; background: #222; }
-        .panel { background: #000; position: relative; overflow: hidden; border: 1px solid #444; }
-        .label { position: absolute; top: 2px; left: 2px; font-size: 8px; color: #0f0; z-index: 10; background: #000; padding: 2px; }
-        #controls { height: 20vh; background: #111; padding: 10px; border-top: 1px solid #0f0; display: flex; flex-direction: column; gap: 5px; box-sizing: border-box; }
-        .row { display: flex; align-items: center; gap: 10px; width: 100%; }
-        .btn { flex: 1; background: #222; color: #0f0; border: 1px solid #0f0; padding: 8px; cursor: pointer; font-size: 10px; font-weight: bold; }
-        #status { font-size: 9px; color: #f0f; text-align: center; }
+        /* Small styling addition for the text-based Analyze tab */
+        #v-analyze { padding: 15px; color: #fff; font-family: monospace; overflow-y: auto; box-sizing: border-box; }
+        .match-row { border-bottom: 1px solid #333; padding: 5px 0; }
+        .match-found { color: #0f0; }
+        .no-match { color: #888; }
     </style>
 </head>
 <body>
-    <div class="grid">
-        <div class="panel" id="p1"><span class="label">SIM-1: FLEET_OF_9 (IMBALANCE_LEARNING)</span></div>
-        <div class="panel" id="p2"><span class="label">SIM-2: SHARED_LOSS_FIELD</span></div>
-        <div class="panel" id="p3"><span class="label">SIM-3: COLLECTIVE_Z_AXIS</span></div>
-    </div>
-    <div id="controls">
-        <div class="row"><strong>ENTROPY:</strong> <input type="range" id="warp" min="1" max="500" value="150" style="flex:2"></div>
-        <div class="row">
-            <button class="btn" id="saveBtn">💾 LOG FLEET</button>
-            <button class="btn" id="stackBtn">📡 SYNC GHOSTS</button>
-            <button class="btn" onclick="location.reload()">🔄 RESET</button>
+    <div id="v-sim" class="view active">
+        <div class="hud">
+            <span>NODE_DISTRIBUTED</span>
+            <span id="pos-display">INITIALIZING ENGINE...</span>
         </div>
-        <div id="status">FLEET_9_READY</div>
+        <canvas id="c-phys"></canvas>
     </div>
 
-    <script type="importmap">
-    { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "supabase": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm" } }
-    </script>
-    <script type="module">
-        import * as THREE from 'three';
-        import { createClient } from 'supabase';
+    <div id="v-lab" class="view"><canvas id="c-brain"></canvas></div>
+    <div id="v-bot" class="view"><canvas id="c-hands"></canvas></div>
+    <div id="v-hyper" class="view"><canvas id="c-hyper"></canvas></div>
+    <div id="v-zeta" class="view"><canvas id="c-zeta"></canvas></div>
+    
+    <div id="v-analyze" class="view"></div>
 
-        const sb = createClient('https://xoolmbmnzbsvcqeyqvyi.supabase.co', 'sb_publishable_A1cLFAKbAg77TfTkD2RB-w_PahU316T');
-        const status = document.getElementById('status');
-        const warpSlider = document.getElementById('warp');
-
-        function setup(id, is3D) {
-            const el = document.getElementById(id);
-            const scene = new THREE.Scene();
-            const cam = is3D ? new THREE.PerspectiveCamera(75, el.clientWidth/el.clientHeight, 0.1, 100) : new THREE.OrthographicCamera(-2.5,2.5,2.5,-2.5,0.1,100);
-            const ren = new THREE.WebGLRenderer({ antialias: true });
-            ren.setSize(el.clientWidth, el.clientHeight);
-            el.appendChild(ren.domElement);
-            cam.position.z = 5;
-            return { scene, cam, ren };
-        }
-
-        const s1 = setup('p1', false); const s2 = setup('p2', false); const s3 = setup('p3', true);
-        const stackGroup = new THREE.Group(); s2.scene.add(stackGroup);
-        s3.scene.add(new THREE.BoxHelper(new THREE.Mesh(new THREE.BoxGeometry(4,4,4)), 0x00ff00));
-
-        // Create 9 Bots
-        const bots = [];
-        for(let i=0; i<9; i++) {
-            const bot = {
-                pos: new THREE.Vector3((Math.random()-0.5)*2, (Math.random()-0.5)*2, 0),
-                vel: new THREE.Vector3((Math.random()-0.5)*0.05, (Math.random()-0.5)*0.05, (Math.random()-0.5)*0.02),
-                trail: [],
-                line: new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: new THREE.Color().setHSL(i/9, 1, 0.5), transparent: true, opacity: 0.6 })),
-                mesh: new THREE.Mesh(new THREE.SphereGeometry(0.06), new THREE.MeshBasicMaterial({color: 0x00ff00}))
-            };
-            s1.scene.add(bot.line);
-            s3.scene.add(bot.mesh);
-            bots.push(bot);
-        }
-
-        document.getElementById('saveBtn').onclick = async () => {
-            status.innerText = "SAVING FLEET LOGS...";
-            const logs = bots.map(b => b.trail.map(p => ({x:p.x, y:p.y})));
-            await sb.from('jobs').insert([{ status: 'completed', variant_name: 'sim3colts', config: { fleet: 9 }, result: { logs: logs, type: 'fleet_billiard' } }]);
-            status.innerText = "FLEET DATA ARCHIVED";
-        };
-
-        function loop() {
-            let e = warpSlider.value / 1000;
-            bots.forEach((b, idx) => {
-                let dist = 2 - Math.max(Math.abs(b.pos.x), Math.abs(b.pos.y));
-                let cur = e / (dist + 0.05);
-                b.vel.x += Math.sin(b.pos.y * cur) * 0.01;
-                b.vel.y += Math.cos(b.pos.x * cur) * 0.01;
-                b.pos.add(b.vel);
-
-                if (Math.abs(b.pos.x) > 2) { b.vel.x *= -1; b.pos.x = Math.sign(b.pos.x) * 1.99; }
-                if (Math.abs(b.pos.y) > 2) { b.vel.y *= -1; b.pos.y = Math.sign(b.pos.y) * 1.99; }
-                
-                b.mesh.position.copy(b.pos);
-                b.trail.push(b.pos.clone()); if (b.trail.length > 200) b.trail.shift();
-                b.line.geometry.setFromPoints(b.trail);
-            });
-
-            s1.ren.render(s1.scene, s1.cam);
-            s2.ren.render(s2.scene, s2.cam);
-            s3.ren.render(s3.scene, s3.cam);
-            requestAnimationFrame(loop);
-        }
-        loop();
-    </script>
+    <nav class="nav">
+        <button onclick="tab('sim')" id="b-sim" class="active">EYES</button>
+        <button onclick="tab('lab')" id="b-lab">BRAIN</button>
+        <button onclick="tab('bot')" id="b-bot">HANDS</button>
+        <button onclick="tab('hyper')" id="b-hyper">HYPER</button>
+        <button onclick="tab('zeta')" id="b-zeta" style="color:#ff8c00;">ZETA</button>
+        <button onclick="tab('analyze')" id="b-analyze" style="color:#ff00ff;">ANALYZE</button>
+        <button onclick="downloadData()" style="background:#0ff; color:#000;">SAVE</button>
+    </nav>
+    <script src="cloud.js"></script>
+    <script src="main.js"></script>
 </body>
 </html>
