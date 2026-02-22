@@ -24,4 +24,4 @@ There are no dependencies or build steps required.
 
 ## Support the Project
 If you enjoy this mathematical visualizer, consider buying me a coffee to support future updates and new simulations!
-[Buy Me a Coffee Link]
+[buymeacoffee.com/brandonkennedy]
