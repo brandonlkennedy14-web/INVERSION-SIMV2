@@ -1,12 +1,10 @@
-cat <<EOF > style.css
-body { background: #000; color: #0f0; font-family: 'Courier New', monospace; margin: 0; overflow: hidden; }
-#tab-bar { display: flex; background: #0a0a0a; border-bottom: 1px solid #0f0; }
-.tab { padding: 12px 20px; cursor: pointer; color: #050; border-right: 1px solid #050; }
-.tab.active { color: #0f0; background: #001a00; border-bottom: 2px solid #0f0; }
-.module { display: none; width: 100vw; height: calc(100vh - 45px); position: relative; }
-.module.active { display: block; }
-#hud { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.9); border: 1px solid #0f0; padding: 15px; z-index: 10; pointer-events: auto; }
-canvas { display: block; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); border: 1px solid #030; }
-input { background: #000; color: #0f0; border: 1px solid #0f0; width: 80px; }
-button { background: #0f0; color: #000; font-weight: bold; border: none; cursor: pointer; }
-EOF
+:root { --neon-g: #0f0; --neon-p: #f0f; --neon-b: #0ff; }
+body { margin: 0; background: #000; color: var(--neon-g); font-family: monospace; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+.nav { display: flex; background: #111; height: 60px; border-top: 1px solid var(--neon-g); position: fixed; bottom: 0; width: 100%; }
+.nav button { flex: 1; background: none; border: none; color: #444; font-size: 10px; font-weight: bold; }
+.nav button.active { color: var(--neon-g); background: #050505; }
+.view { display: none; flex: 1; flex-direction: column; padding: 10px; padding-bottom: 70px; }
+.view.active { display: flex; }
+canvas { width: 100%; aspect-ratio: 1/1; background: #050505; border: 1px solid #333; display: block; margin: auto; }
+.hud { display: flex; justify-content: space-between; font-size: 9px; color: var(--neon-p); padding: 5px; height: 20px; }
+#log { font-size: 10px; color: var(--neon-b); white-space: pre-wrap; flex: 1; padding: 10px; background: #080808; overflow-y: scroll; }
