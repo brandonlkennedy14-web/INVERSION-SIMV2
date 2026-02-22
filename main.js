@@ -21,13 +21,23 @@ window.onload = () => {
         document.body.appendChild(dl); dl.click(); dl.remove();
     };
 
+    window.injectVy = () => {
+        let val = prompt("Enter specific Vy to test (e.g., 3.14159 or 1.618033):");
+        if(val && !isNaN(parseFloat(val))) {
+            s.vy = parseFloat(val); s.vx = 5; 
+            s.x = 250; s.y = 250; s.bounces = 0; 
+            s.currentLoss = Infinity; s.shotsFired++;
+            s.ghostPts = calcGhost(); 
+        }
+    };
+
     const cp = document.getElementById('c-phys'), ctxP = cp.getContext('2d');
     const cb = document.getElementById('c-brain'), ctxB = cb.getContext('2d');
     const ch = document.getElementById('c-hyper'), ctxH = ch.getContext('2d');
     const cHand = document.getElementById('c-hands'), ctxHand = cHand.getContext('2d');
     const cZeta = document.getElementById('c-zeta'), ctxZ = cZeta.getContext('2d');
     
-    // Converted to perfect square for exact winding numbers
+    // Converted to perfect 500x500 square for exact winding numbers
     cp.width = cb.width = ch.width = cHand.width = cZeta.width = 500; 
     cp.height = cb.height = ch.height = cHand.height = cZeta.height = 500; 
     const posEl = document.getElementById('pos-display');
@@ -47,7 +57,6 @@ window.onload = () => {
     let ripples = []; let gridPulse = { alpha: 0, color: '0, 255, 255', radius: 0, waveFactor: 0 };
     let topEfficiency = []; let topComplexity = []; let harmonics = new Array(1505).fill(0);
 
-    // Upgraded Topological Constants
     const CONSTANTS = [
         { name: "π", val: Math.PI }, { name: "e", val: Math.E }, { name: "φ", val: 1.618033988749 },
         { name: "√2", val: Math.SQRT2 }, { name: "√3", val: 1.732050807568 }, { name: "√5", val: 2.236067977499 },
@@ -97,7 +106,7 @@ window.onload = () => {
                 let dx = Math.min(tx, 500-tx); let dy = Math.min(ty, 500-ty);
                 let dist = Math.sqrt(dx*dx + dy*dy);
                 if(dist < mLoss) mLoss = dist;
-                if(hitX && hitY) { mLoss = 0; break; } // Perfect corner hit
+                if(hitX && hitY) { mLoss = 0; break; } 
             }
             if(bCount >= 1500) break;
         }
@@ -160,7 +169,7 @@ window.onload = () => {
 
     // THE RIEMANN ZETA ENGINE
     let verifiedZeros = [];
-    let zetaCache = []; // Cache to prevent lagging at high t
+    let zetaCache = []; 
     
     function calcZetaMagnitude(t) {
         let reEta = 0, imEta = 0; let terms = 150; 
@@ -177,7 +186,6 @@ window.onload = () => {
         return magDen === 0 ? 0 : magEta / magDen;
     }
 
-    // Pre-calculate the base path for performance
     for(let t=0; t<=100; t+=0.2) { zetaCache.push({t: t, mag: calcZetaMagnitude(t)}); }
 
     let zetaBots = [
@@ -268,7 +276,6 @@ window.onload = () => {
         });
         ctxH.stroke();
 
-        // Zeta-Hyper Sync Glow
         let syncGlow = gridPulse.alpha > 0.1 ? gridPulse.alpha * 20 : 0;
         
         verifiedZeros.forEach(z => {
@@ -318,8 +325,7 @@ window.onload = () => {
 
     window.renderSymmetryMap = () => {
         ctxB.fillStyle = '#000'; ctxB.fillRect(0,0,500,500);
-        ctxB.fillStyle = '#fff'; ctxB.font = '12px monospace';
-        ctxB.fillText(s.mapMode === 0 ? "[VIEW: MELLI SPIRALS + RULIAD WEB]" : "[VIEW: FAREY SPREAD + RULIAD WEB]", 10, 20);
+        
         ctxB.strokeStyle = 'rgba(255, 255, 255, 0.05)'; ctxB.lineWidth = 1;
         for(let i=0; i<=500; i+=50) { 
             ctxB.beginPath(); ctxB.moveTo(i, 0); ctxB.lineTo(i, 500); ctxB.stroke(); 
@@ -346,6 +352,22 @@ window.onload = () => {
             ctxB.fillStyle = item.botType === 'smith' ? '#0f0' : (item.botType === 'chaos' ? '#ff8c00' : '#f0f'); 
             ctxB.beginPath(); ctxB.arc(x, y, item.botType === 'chaos' ? 4 : 2.5, 0, Math.PI * 2); ctxB.fill();
         });
+
+        if(s.recent.length > 1) {
+            ctxB.strokeStyle = 'rgba(0, 255, 255, 0.5)'; ctxB.lineWidth = 1.5; ctxB.beginPath();
+            let startIdx = Math.max(0, s.recent.length - 15);
+            for(let i = startIdx; i < s.recent.length; i++) {
+                let n = s.recent[i];
+                let x = s.mapMode === 0 ? ((n.vy - 5) * 100) % 500 : (n.bounces * 5) % 500;
+                let y = s.mapMode === 0 ? (n.bounces * 2) % 500 : (n.vy * 50) % 500;
+                if(i === startIdx) ctxB.moveTo(x, y); else ctxB.lineTo(x, y);
+            }
+            ctxB.stroke();
+        }
+
+        ctxB.fillStyle = 'rgba(0,0,0,0.7)'; ctxB.fillRect(0,0,500,30);
+        ctxB.fillStyle = '#fff'; ctxB.font = '12px monospace';
+        ctxB.fillText(s.mapMode === 0 ? "[VIEW: MELLI SPIRALS + RULIAD WEB]" : "[VIEW: FAREY SPREAD + RULIAD WEB]", 10, 20);
 
         if(replay.trail.length > 0) {
             ctxB.fillStyle = 'rgba(255, 255, 255, 0.8)';
@@ -431,7 +453,7 @@ window.onload = () => {
                     reseed(); break;
                 }
 
-                if(hitX && hitY) { // PERFECT CORNER HIT - WINDING NUMBER ACHIEVED
+                if(hitX && hitY) { 
                     s.currentLoss = 0;
                     if(s.currentLoss <= activeBot.bestLoss) {
                         activeBot.bestLoss = 0; activeBot.mem = Math.abs(s.vy); activeBot.memB = s.bounces;
@@ -496,27 +518,20 @@ window.onload = () => {
             let activeBot = bots[s.currentBot]; ctxP.fillStyle = activeBot.color; ctxP.fillRect(s.x-2, s.y-2, 4, 4);
             ctxP.shadowBlur = 0;
             
-            let chaos = s.shotsFired > 0 ? (((s.shotsFired - s.found) / s.shotsFired) * 100).toFixed(2) : 100.00;
-            ctxP.fillStyle = 'rgba(0,0,0,0.85)'; ctxP.fillRect(10, 10, 310, 180);
+            ctxP.fillStyle = 'rgba(0,0,0,0.75)'; ctxP.fillRect(0, 0, 500, 35);
             
+            let chaos = s.shotsFired > 0 ? (((s.shotsFired - s.found) / s.shotsFired) * 100).toFixed(2) : 100.00;
             let smithTotal = bots.filter(b=>b.type==='smith').reduce((a,b)=>a+b.score, 0);
             let bladeTotal = bots.filter(b=>b.type==='blade').reduce((a,b)=>a+b.score, 0);
             
-            ctxP.font = '12px monospace';
-            ctxP.fillStyle = '#ff0'; ctxP.fillText(`CHAOS INDEX: ${chaos}%`, 15, 25);
-            ctxP.fillStyle = '#0f0'; ctxP.fillText(`SMITHS: ${smithTotal.toLocaleString()}`, 15, 45);
-            ctxP.fillStyle = '#f0f'; ctxP.fillText(`BLADES: ${bladeTotal.toLocaleString()}`, 160, 45);
+            ctxP.font = '11px monospace';
+            ctxP.fillStyle = '#ff0'; ctxP.fillText(`CHAOS: ${chaos}%`, 10, 14);
+            ctxP.fillStyle = '#0f0'; ctxP.fillText(`SMITHS: ${smithTotal.toLocaleString()}`, 130, 14);
+            ctxP.fillStyle = '#f0f'; ctxP.fillText(`BLADES: ${bladeTotal.toLocaleString()}`, 280, 14);
             
-            ctxP.font = '10px monospace';
-            topEfficiency.slice(0, 10).forEach((n, idx) => {
-                ctxP.fillStyle = '#0f0'; 
-                ctxP.fillText(`Vy ${n.vy.toFixed(n.bounces===1500?10:4)}: ${n.bounces}b`, 15, 60 + (idx*12));
-            });
-            topComplexity.slice(0, 10).forEach((n, idx) => {
-                ctxP.fillStyle = n.botType === 'chaos' ? '#ff8c00' : '#f0f';
-                let bStr = n.bounces === 1500 ? 'INF' : `${n.bounces}b`;
-                ctxP.fillText(`Vy ${n.vy.toFixed(n.bounces===1500?10:4)}: ${bStr}`, 160, 60 + (idx*12));
-            });
+            let tE = topEfficiency[0] ? topEfficiency[0].vy.toFixed(6) : 'N/A';
+            let tC = topComplexity[0] ? topComplexity[0].vy.toFixed(6) : 'N/A';
+            ctxP.fillStyle = '#fff'; ctxP.fillText(`TOP EFFICIENT: ${tE} | TOP COMPLEX: ${tC}`, 10, 28);
         }
 
         for(let i = ripples.length-1; i >= 0; i--) {
