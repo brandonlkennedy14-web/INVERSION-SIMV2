@@ -91,7 +91,6 @@ window.onload = () => {
             replay.active = true; replay.x = 250; replay.y = 250; replay.vx = clickedNode.vx; replay.vy = clickedNode.vy;
             replay.bounces = 0; replay.targetBounces = clickedNode.bounces; replay.name = clickedNode.seq; replay.trail = []; 
             replay.node = clickedNode; 
-            // NOTE: Removed window.tab('sim') to stay in the BRAIN view
         } else { s.mapMode = (s.mapMode + 1) % 2; window.renderSymmetryMap(); }
     });
 
@@ -195,6 +194,27 @@ window.onload = () => {
         { name: "Zeta-5", t: 30 + Math.random()*2, color: "#ff0" }
     ];
 
+    // NEW: Background logic so bots hunt continually regardless of open tab
+    function updateZetaBots() {
+        zetaBots.forEach(b => {
+            let L1 = calcZetaMagnitude(b.t); let L2 = calcZetaMagnitude(b.t + 0.001);
+            let gradient = (L2 - L1) / 0.001;
+            
+            if(Math.abs(gradient) < 0.0005 && L1 < 0.05) {
+                if(!verifiedZeros.some(z => Math.abs(z - b.t) < 0.5)) {
+                    verifiedZeros.push(b.t);
+                }
+                // FIX: Force reset out of the valley, even if already verified!
+                b.t += 3.5 + Math.random(); 
+            } else {
+                b.t = b.t - (gradient * 0.01); 
+                // Loop them back if they hit the 100 edge so they keep hunting
+                if(b.t > 100) b.t = 10 + Math.random() * 5; 
+                if(b.t < 0) b.t = 10;
+            }
+        });
+    }
+
     window.renderZeta = () => {
         ctxZ.fillStyle = 'rgba(0,0,0,0.5)'; ctxZ.fillRect(0,0,500,500);
         ctxZ.fillStyle = '#ff8c00'; ctxZ.font = '12px monospace';
@@ -217,20 +237,8 @@ window.onload = () => {
             ctxZ.fillStyle = '#ffd700'; ctxZ.fillText(`LOCKED: ${z.toFixed(4)}`, 290, y+4);
         });
 
+        // Drawing bots (Math has been moved to updateZetaBots)
         zetaBots.forEach(b => {
-            let L1 = calcZetaMagnitude(b.t); let L2 = calcZetaMagnitude(b.t + 0.001);
-            let gradient = (L2 - L1) / 0.001;
-            
-            if(Math.abs(gradient) < 0.0005 && L1 < 0.05) {
-                if(!verifiedZeros.some(z => Math.abs(z - b.t) < 0.5)) {
-                    verifiedZeros.push(b.t);
-                    b.t += 3.5 + Math.random(); 
-                }
-            } else {
-                b.t = b.t - (gradient * 0.01); 
-                if(b.t < 0) b.t = 0; if(b.t > 100) b.t = 100;
-            }
-
             let y = (b.t / 100) * 500; let x = 250 + (calcZetaMagnitude(b.t) * 60);
             ctxZ.fillStyle = b.color; ctxZ.shadowBlur = 10; ctxZ.shadowColor = b.color;
             ctxZ.beginPath(); ctxZ.arc(x, y, 4, 0, Math.PI*2); ctxZ.fill(); ctxZ.shadowBlur = 0;
@@ -373,20 +381,17 @@ window.onload = () => {
             });
         }
 
-        // PIP AND OVERLAYS (Draw last so it is always on top)
         ctxB.fillStyle = 'rgba(0,0,0,0.7)'; ctxB.fillRect(0,0,500,30);
         ctxB.fillStyle = '#fff'; ctxB.font = '12px monospace';
         ctxB.fillText(s.mapMode === 0 ? "[VIEW: MELLI SPIRALS + RULIAD WEB]" : "[VIEW: FAREY SPREAD + RULIAD WEB]", 10, 20);
 
         if(replay.active && replay.node) {
-            // Target-lock ring around the selected node
             let nx = s.mapMode === 0 ? ((replay.node.vy - 5) * 100) % 500 : (replay.node.bounces * 5) % 500;
             let ny = s.mapMode === 0 ? (replay.node.bounces * 2) % 500 : (replay.node.vy * 50) % 500;
             let pulse = Math.abs(Math.sin(Date.now() * 0.005)) * 8;
             ctxB.strokeStyle = '#fff'; ctxB.lineWidth = 1;
             ctxB.beginPath(); ctxB.arc(nx, ny, 6 + pulse, 0, Math.PI*2); ctxB.stroke();
 
-            // PICTURE-IN-PICTURE (Mini-Eyes View)
             let pipSize = 130;
             let pipX = 500 - pipSize - 10;
             let pipY = 40;
@@ -394,7 +399,6 @@ window.onload = () => {
             ctxB.fillStyle = 'rgba(0, 0, 0, 0.85)'; ctxB.fillRect(pipX, pipY, pipSize, pipSize);
             ctxB.strokeStyle = 'rgba(0, 255, 255, 0.5)'; ctxB.strokeRect(pipX, pipY, pipSize, pipSize);
 
-            // Bouncing ball localized to the PiP box
             let dotX = pipX + (replay.x / 500) * pipSize;
             let dotY = pipY + (replay.y / 500) * pipSize;
             let aColor = getFrequencyColor(replay.bounces);
@@ -431,6 +435,9 @@ window.onload = () => {
     };
 
     function engine() {
+        // ALWAYS update Zeta bots in the background
+        updateZetaBots();
+
         if(replay.active) {
             for(let i=0; i<30; i++) { 
                 replay.x += replay.vx; replay.y += replay.vy;
@@ -441,12 +448,10 @@ window.onload = () => {
                     replay.active = false; triggerRipple(replay.x, replay.y, replay.targetBounces); reseed(); break;
                 }
             }
-            // Keep drawing to background Eyes view just in case they switch back during replay
             ctxP.fillStyle = 'rgba(0,0,0,0.02)'; ctxP.fillRect(0,0,500,500);
             let aColor = getFrequencyColor(replay.bounces); ctxP.shadowBlur = 15; ctxP.shadowColor = `rgb(${aColor})`;
             ctxP.fillStyle = '#fff'; ctxP.fillRect(replay.x-2, replay.y-2, 4, 4); ctxP.shadowBlur = 0;
             
-            // This is the trigger that now redraws the PiP correctly in the Brain view
             if(document.getElementById('v-lab').classList.contains('active')) window.renderSymmetryMap();
         } else {
             for(let i = 0; i < 1000; i++) {
