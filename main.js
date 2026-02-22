@@ -154,7 +154,7 @@ window.onload = () => {
         if(b > 10) return '50, 205, 50'; return '0, 255, 255';                
     }
 
-    function getTopology(vy) {
+    function getTopology(vy, isVoid) {
         let topMatch = "None";
         for(let c of CONSTANTS) {
             for(let k = 1; k <= 10; k++) { 
@@ -162,6 +162,9 @@ window.onload = () => {
                 if(Math.abs(vy - (c.val / k)) < 0.005) { topMatch = `≈ ${c.name} / ${k}`; break; }
             }
             if(topMatch !== "None") break;
+        }
+        if(topMatch === "None") {
+            topMatch = isVoid ? "Irrational Space (Chaos)" : "Rational Orbit (Closed Loop)";
         }
         return topMatch;
     }
@@ -194,7 +197,6 @@ window.onload = () => {
         { name: "Zeta-5", t: 30 + Math.random()*2, color: "#ff0" }
     ];
 
-    // NEW: Background logic so bots hunt continually regardless of open tab
     function updateZetaBots() {
         zetaBots.forEach(b => {
             let L1 = calcZetaMagnitude(b.t); let L2 = calcZetaMagnitude(b.t + 0.001);
@@ -204,11 +206,10 @@ window.onload = () => {
                 if(!verifiedZeros.some(z => Math.abs(z - b.t) < 0.5)) {
                     verifiedZeros.push(b.t);
                 }
-                // FIX: Force reset out of the valley, even if already verified!
-                b.t += 3.5 + Math.random(); 
+                // FINAL FIX: Hyperspace jump out of the valley entirely
+                b.t = 10 + Math.random() * 85; 
             } else {
                 b.t = b.t - (gradient * 0.01); 
-                // Loop them back if they hit the 100 edge so they keep hunting
                 if(b.t > 100) b.t = 10 + Math.random() * 5; 
                 if(b.t < 0) b.t = 10;
             }
@@ -237,7 +238,6 @@ window.onload = () => {
             ctxZ.fillStyle = '#ffd700'; ctxZ.fillText(`LOCKED: ${z.toFixed(4)}`, 290, y+4);
         });
 
-        // Drawing bots (Math has been moved to updateZetaBots)
         zetaBots.forEach(b => {
             let y = (b.t / 100) * 500; let x = 250 + (calcZetaMagnitude(b.t) * 60);
             ctxZ.fillStyle = b.color; ctxZ.shadowBlur = 10; ctxZ.shadowColor = b.color;
@@ -416,26 +416,33 @@ window.onload = () => {
     window.renderAnalyze = () => {
         let aDiv = document.getElementById('v-analyze');
         let html = `<h2>[TOPOLOGICAL CONSTANT ANALYZER]</h2>`;
-        html += `<p style="color:#ff8c00;">Scanning Memory Banks for 1500-bounce Chaos Voids...</p>`;
         
         let voids = [...new Map(s.recent.filter(n => n.bounces === 1500).map(item => [item.vy.toFixed(6), item])).values()];
+        let orbits = [...new Map(s.recent.filter(n => n.bounces < 1500 && n.bounces > 0).map(item => [item.vy.toFixed(6), item])).values()].slice(0, 15);
         
+        html += `<h3 style="color:#ff8c00;">[IRRATIONAL CHAOS VOIDS - 1500b]</h3>`;
         if(voids.length === 0) {
-            html += `<p class="no-match">No Chaos Voids detected in recent memory yet. Let the Blades hunt.</p>`;
+            html += `<p class="no-match">No Chaos Voids detected yet.</p>`;
         } else {
             voids.forEach(v => {
-                let rowClass = v.topology !== "None" ? "match-found" : "no-match";
-                html += `<div class="match-row ${rowClass}">`;
-                html += `<strong>VOID:</strong> Vy = ${v.vy.toFixed(10)} <br>`;
-                html += `<strong>MATCH:</strong> ${v.topology}`;
-                html += `</div>`;
+                let rowClass = v.topology.includes("None") || v.topology.includes("Rational") ? "no-match" : "match-found";
+                html += `<div class="match-row ${rowClass}"><strong>VOID:</strong> Vy = ${v.vy.toFixed(6)} | <strong>MATCH:</strong> ${v.topology}</div>`;
             });
         }
+
+        html += `<br><h3 style="color:#0ff;">[RATIONAL ORBITS - CLOSED LOOPS]</h3>`;
+        if(orbits.length === 0) {
+            html += `<p class="no-match">No stable orbits verified yet.</p>`;
+        } else {
+            orbits.forEach(o => {
+                html += `<div class="match-row" style="color:#0ff;"><strong>ORBIT:</strong> Vy = ${o.vy.toFixed(6)} | <strong>BOUNCES:</strong> ${o.bounces} | <strong>MATCH:</strong> ${o.topology}</div>`;
+            });
+        }
+        
         aDiv.innerHTML = html;
     };
 
     function engine() {
-        // ALWAYS update Zeta bots in the background
         updateZetaBots();
 
         if(replay.active) {
@@ -478,7 +485,7 @@ window.onload = () => {
                         if(!s.recent.some(r => r.seq === sig)) {
                             s.found++; activeBot.score += 1500; 
                             
-                            let topMatch = getTopology(Math.abs(s.vy));
+                            let topMatch = getTopology(Math.abs(s.vy), true);
                             s.recent.push({ seq: sig, vx: 5, vy: Math.abs(s.vy), bounces: 1500, botType: 'chaos', topology: topMatch });
                             
                             harmonics[1500]++; triggerRipple(s.x, s.y, 1500); updateLeaderboards();
@@ -502,7 +509,8 @@ window.onload = () => {
                         if(activeBot.type === 'smith') activeBot.score += Math.max(10, 500 - s.bounces); 
                         if(activeBot.type === 'blade') activeBot.score += s.bounces; 
                         
-                        s.recent.push({ seq: sig, vx: 5, vy: Math.abs(s.vy), bounces: s.bounces, botType: activeBot.type, topology: "None" });
+                        let topMatch = getTopology(Math.abs(s.vy), false);
+                        s.recent.push({ seq: sig, vx: 5, vy: Math.abs(s.vy), bounces: s.bounces, botType: activeBot.type, topology: topMatch });
                         harmonics[s.bounces]++; triggerRipple(s.x, s.y, s.bounces); updateLeaderboards();
                         if(s.recent.length > 2000) s.recent.shift();
                         
