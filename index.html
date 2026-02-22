@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Symmetry Miner</title>
+    <title>Inversion Sim v2</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        /* Small styling addition for the text-based Analyze tab */
         #v-analyze { padding: 15px; color: #fff; font-family: monospace; overflow-y: auto; box-sizing: border-box; }
         .match-row { border-bottom: 1px solid #333; padding: 5px 0; }
         .match-found { color: #0f0; }
@@ -37,6 +36,7 @@
         <button onclick="tab('hyper')" id="b-hyper">HYPER</button>
         <button onclick="tab('zeta')" id="b-zeta" style="color:#ff8c00;">ZETA</button>
         <button onclick="tab('analyze')" id="b-analyze" style="color:#ff00ff;">ANALYZE</button>
+        <button onclick="injectVy()" style="color:#fff;">INJECT</button>
         <button onclick="downloadData()" style="background:#0ff; color:#000;">SAVE</button>
     </nav>
     <script src="cloud.js"></script>
