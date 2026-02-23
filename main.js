@@ -7,9 +7,7 @@ window.tab = (t) => {
     if(t === 'bot' && window.renderHands) window.renderHands();
     if(t === 'zeta' && window.renderZeta) window.renderZeta();
     if(t === 'analyze' && window.renderAnalyze) window.renderAnalyze();
-// Add this inside your window.tab = (t) => { ... } logic
-if(t === 'reality') renderIsoscelesReality();
-
+    if(t === 'reality' && window.renderIsoscelesReality) window.renderIsoscelesReality();
 };
 
 window.onload = () => {
@@ -401,15 +399,14 @@ window.onload = () => {
             ctxB.fillStyle = 'rgba(0, 0, 0, 0.85)'; ctxB.fillRect(pipX, pipY, pipSize, pipSize);
             ctxB.strokeStyle = 'rgba(0, 255, 255, 0.5)'; ctxB.strokeRect(pipX, pipY, pipSize, pipSize);
 
-            // ---- NEW RULIAD WEB LOGIC IN REPLAY BOX ----
             if (replay.trail.length > 1) {
                 ctxB.strokeStyle = 'rgba(0, 255, 204, 0.4)'; 
                 ctxB.lineWidth = 1;
                 ctxB.beginPath();
-                
+
                 let simX = 250, simY = 250, sVx = replay.node.vx, sVy = replay.node.vy;
                 let bounceHistory = [{x: simX, y: simY}];
-                
+
                 for (let i = 0; i < replay.bounces; i++) {
                      let tX = sVx > 0 ? (500 - simX)/sVx : (0 - simX)/sVx;
                      let tY = sVy > 0 ? (500 - simY)/sVy : (0 - simY)/sVy;
@@ -426,7 +423,6 @@ window.onload = () => {
                 }
                 ctxB.stroke();
             }
-            // ---------------------------------------------
 
             let dotX = pipX + (replay.x / 500) * pipSize;
             let dotY = pipY + (replay.y / 500) * pipSize;
@@ -469,6 +465,52 @@ window.onload = () => {
         }
 
         aDiv.innerHTML = html;
+    };
+
+    // --- FINAL REALITY TAB INTEGRATION (Now Properly Scoped) ---
+    window.renderIsoscelesReality = () => {
+        const vReality = document.getElementById('v-reality');
+        if(!vReality) return;
+        
+        let canvasR = document.getElementById('c-reality');
+        if (!canvasR) {
+            canvasR = document.createElement('canvas');
+            canvasR.id = 'c-reality';
+            canvasR.width = 500;
+            canvasR.height = 500;
+            vReality.appendChild(canvasR);
+        }
+        const ctxR = canvasR.getContext('2d');
+
+        ctxR.fillStyle = '#000';
+        ctxR.fillRect(0, 0, 500, 500);
+
+        ctxR.fillStyle = '#00ff55'; 
+        ctxR.font = '12px monospace';
+        ctxR.fillText("[VIEW: ISOSCELES REALITY MAPPING]", 10, 20);
+
+        const apexX = 250, apexY = 60, baseY = 460, baseWidth = 420;
+        ctxR.strokeStyle = 'rgba(0, 255, 255, 0.4)';
+        ctxR.lineWidth = 2;
+        ctxR.beginPath();
+        ctxR.moveTo(apexX, apexY);
+        ctxR.lineTo(apexX - baseWidth/2, baseY);
+        ctxR.lineTo(apexX + baseWidth/2, baseY);
+        ctxR.closePath();
+        ctxR.stroke();
+
+        s.recent.forEach(item => {
+            let nY = item.bounces / 1500; 
+            let nX = (item.vy - 5) / 4; 
+
+            let yPos = apexY + (nY * (baseY - apexY));
+            let xPos = apexX + (nX - 0.5) * (nY * baseWidth);
+
+            ctxR.fillStyle = item.botType === 'smith' ? '#0f0' : (item.botType === 'chaos' ? '#ff8c00' : '#f0f');
+            ctxR.beginPath();
+            ctxR.arc(xPos, yPos, item.botType === 'chaos' ? 3 : 2, 0, Math.PI * 2);
+            ctxR.fill();
+        });
     };
 
     function engine() {
@@ -620,52 +662,11 @@ window.onload = () => {
 
         if(document.getElementById('v-hyper').classList.contains('active')) window.renderHyper();
         if(document.getElementById('v-zeta').classList.contains('active')) window.renderZeta();
+        // --- THIS WAS THE MISSING HOOK ---
+        if(document.getElementById('v-reality').classList.contains('active')) window.renderIsoscelesReality();
 
         posEl.innerText = `SCANNED: ${s.scanned} | MELLI NODES & VOIDS: ${s.found}`;
         requestAnimationFrame(engine);
     }
     reseed(); engine();
-// --- FINAL REALITY TAB INTEGRATION ---
-function renderIsoscelesReality() {
-    const vReality = document.getElementById('v-reality');
-    // Ensure canvas exists in the tab
-    let canvasR = document.getElementById('c-reality');
-    if (!canvasR) {
-        canvasR = document.createElement('canvas');
-        canvasR.id = 'c-reality';
-        canvasR.width = 500;
-        canvasR.height = 500;
-        vReality.appendChild(canvasR);
-    }
-    const ctxR = canvasR.getContext('2d');
-
-    // Clear and Draw Boundary
-    ctxR.fillStyle = '#000';
-    ctxR.fillRect(0, 0, 500, 500);
-    
-    const apexX = 250, apexY = 40, baseY = 460, baseWidth = 420;
-    ctxR.strokeStyle = 'rgba(0, 255, 255, 0.2)';
-    ctxR.beginPath();
-    ctxR.moveTo(apexX, apexY);
-    ctxR.lineTo(apexX - baseWidth/2, baseY);
-    ctxR.lineTo(apexX + baseWidth/2, baseY);
-    ctxR.closePath();
-    ctxR.stroke();
-
-    // Map s.recent points into the triangle
-    s.recent.forEach(item => {
-        // Vy (5-9) normalized to X, Bounces (0-1500) normalized to Y
-        let nY = item.bounces / 1500; 
-        let nX = (item.vy - 5) / 4; 
-
-        // The Isosceles Transform
-        let yPos = apexY + (nY * (baseY - apexY));
-        let xPos = apexX + (nX - 0.5) * (nY * baseWidth);
-
-        ctxR.fillStyle = item.botType === 'smith' ? '#0f0' : '#f0f';
-        ctxR.beginPath();
-        ctxR.arc(xPos, yPos, 2, 0, Math.PI * 2);
-        ctxR.fill();
-    });
-}
 };
