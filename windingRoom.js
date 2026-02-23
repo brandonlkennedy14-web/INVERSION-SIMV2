@@ -152,6 +152,26 @@ canvasV3.addEventListener('mouseup', () => {
         particleV3.vx = (dragStartX - mouseX) * 0.15;
         particleV3.vy = (dragStartY - mouseY) * 0.15;
     }
+
+async function logDoubleBounceData(windingNum, precision) {
+    // Note: This assumes your initialized client is globally named 'supabase'.
+    // If you named it something else in main.js, update it here.
+    try {
+        const { data, error } = await supabase
+            .from('inversion_v3_logs') // Replace with your actual Supabase table name
+            .insert([
+                { 
+                    winding_number: windingNum, 
+                    precision_delta: parseFloat(precision.toFixed(5))
+                }
+            ]);
+
+        if (error) throw error;
+        console.log(`Database Log Success | Winding: ${windingNum}, Precision: ${precision.toFixed(5)}`);
+    } catch (err) {
+        console.error("Supabase logging failed. Check table name and permissions:", err.message);
+    }
+}
 });
 
 // --- Render Loop ---
