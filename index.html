@@ -27,7 +27,21 @@
     <div id="v-bot" class="view"><canvas id="c-hands"></canvas></div>
     <div id="v-hyper" class="view"><canvas id="c-hyper"></canvas></div>
     <div id="v-zeta" class="view"><canvas id="c-zeta"></canvas></div>
+    <div id="tab-v3" class="tab-content" style="display: none;">
+    <div id="hud">
+        Winding Number: <span id="windingDisplay" class="highlight">0</span> | 
+        Precision Δ: <span id="precisionDisplay" class="highlight">0.000</span>
+    </div>
     
+    <canvas id="simCanvasV3" width="600" height="600"></canvas>
+    
+    <button class="button" id="toggleMapBtn">Toggle Ruliad Topology Map</button>
+
+    <div id="ruliadBox" style="display: none; position: absolute; top: 50px; right: 50px; background: rgba(10,10,10,0.9); border: 1px solid #ff0055; padding: 10px;">
+        <div style="color: #ff0055; margin-bottom: 8px;">RULIAD TOPOLOGY PATTERN</div>
+        <canvas id="ruliadCanvas" width="300" height="300"></canvas>
+    </div>
+</div>
     <div id="v-analyze" class="view"></div>
 
     <nav class="nav">
