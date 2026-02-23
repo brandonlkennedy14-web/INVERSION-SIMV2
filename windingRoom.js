@@ -1,76 +1,113 @@
+// --- V3 WINDING ROOM (CINEMATIC BILLIARDS) ---
 const canvasV3 = document.getElementById('simCanvasV3');
 const ctxV3 = canvasV3.getContext('2d');
-const LV3 = canvasV3.width;
+const windDisplay = document.getElementById('windingDisplay');
 
-let smithAngle = 0.1; 
-let activeBounces = 0;
-const MAX_BOUNCES_PER_RUN = 50; 
-const LAUNCH_SPEED = 12; 
-let bounceArtifacts = [];
-let particleV3 = { x: LV3 / 2, y: LV3 / 2, vx: 0, vy: 0, radius: 4 };
+let v3 = {
+    x: 250, y: 250, 
+    vx: 4.5, vy: 6.2, // Arbitrary starting irrational vector
+    size: 500,
+    windingNumber: 0,
+    lastAngle: 0,
+    sparks: [],
+    cornerFlash: 0
+};
 
-function deployNextBlade() {
-    smithAngle += 0.005; 
-    const smithDisplay = document.getElementById('smithAngle');
-    if (smithDisplay) smithDisplay.innerText = smithAngle.toFixed(3) + ' rad';
-
-    particleV3.x = LV3 / 2;
-    particleV3.y = LV3 / 2;
-    particleV3.vx = Math.cos(smithAngle) * LAUNCH_SPEED;
-    particleV3.vy = Math.sin(smithAngle) * LAUNCH_SPEED;
-
-    activeBounces = 0;
-    bounceArtifacts = [];
+// Start from the exact center
+function resetV3() {
+    v3.x = 250;
+    v3.y = 250;
+    v3.windingNumber = 0;
 }
 
-class WindingSquare {
-    constructor(size) {
-        this.L = size;
-        this.windingNumber = 0;
-    }
-
-    updateState(p) {
-        p.x += p.vx;
-        p.y += p.vy;
-
-        let hitX = (p.x - p.radius <= 0 || p.x + p.radius >= this.L);
-        let hitY = (p.y - p.radius <= 0 || p.y + p.radius >= this.L);
-
-        if (hitX) { 
-            p.vx *= -1; 
-            p.x = p.x <= p.radius ? p.radius : this.L - p.radius; 
-            activeBounces++;
-        }
-        if (hitY) { 
-            p.vy *= -1; 
-            p.y = p.y <= p.radius ? p.radius : this.L - p.radius; 
-            activeBounces++;
-        }
-
-        const bDisplay = document.getElementById('bladeBounces');
-        if (bDisplay) bDisplay.innerText = activeBounces;
-
-        if (activeBounces >= MAX_BOUNCES_PER_RUN || (hitX && hitY)) {
-            if (hitX && hitY) this.windingNumber++;
-            const wDisplay = document.getElementById('windingDisplay');
-            if (wDisplay) wDisplay.innerText = this.windingNumber;
-            deployNextBlade();
-        }
+function spawnSparks(x, y, color) {
+    for(let i=0; i<10; i++) {
+        v3.sparks.push({
+            x: x, y: y,
+            vx: (Math.random() - 0.5) * 8,
+            vy: (Math.random() - 0.5) * 8,
+            life: 1.0, color: color
+        });
     }
 }
 
-const engineV3 = new WindingSquare(LV3);
+function engineV3() {
+    // 1. Fade the background slightly to create motion trails (Cinema mode)
+    ctxV3.fillStyle = 'rgba(5, 5, 5, 0.15)'; 
+    ctxV3.fillRect(0, 0, v3.size, v3.size);
 
-function drawV3() {
-    ctxV3.fillStyle = 'rgba(26, 26, 26, 0.2)';
-    ctxV3.fillRect(0, 0, LV3, LV3);
-    engineV3.updateState(particleV3);
+    // Grid lines
+    ctxV3.strokeStyle = 'rgba(0, 255, 204, 0.05)';
+    ctxV3.lineWidth = 1;
     ctxV3.beginPath();
-    ctxV3.arc(particleV3.x, particleV3.y, particleV3.radius, 0, Math.PI * 2);
-    ctxV3.fillStyle = '#00ffcc';
+    ctxV3.moveTo(v3.size/2, 0); ctxV3.lineTo(v3.size/2, v3.size);
+    ctxV3.moveTo(0, v3.size/2); ctxV3.lineTo(v3.size, v3.size/2);
+    ctxV3.stroke();
+
+    // 2. Physics Step
+    for(let step=0; step<5; step++) { // Speed up simulation slightly
+        v3.x += v3.vx;
+        v3.y += v3.vy;
+
+        let hitX = (v3.x <= 0 || v3.x >= v3.size);
+        let hitY = (v3.y <= 0 || v3.y >= v3.size);
+
+        if(hitX) { 
+            v3.vx *= -1; 
+            v3.x = v3.x <= 0 ? 0 : v3.size; 
+            spawnSparks(v3.x, v3.y, '#00ffcc');
+        }
+        if(hitY) { 
+            v3.vy *= -1; 
+            v3.y = v3.y <= 0 ? 0 : v3.size; 
+            spawnSparks(v3.x, v3.y, '#00ffcc');
+        }
+
+        // Corner Detection (The "Hit")
+        if(hitX && hitY) {
+            v3.windingNumber++;
+            windDisplay.innerText = v3.windingNumber;
+            v3.cornerFlash = 1.0; // Trigger screen flash
+            spawnSparks(v3.x, v3.y, '#ff0055'); // Red sparks for corners
+        }
+    }
+
+    // 3. Draw Sparks
+    for(let i = v3.sparks.length-1; i >= 0; i--) {
+        let s = v3.sparks[i];
+        s.x += s.vx; s.y += s.vy; s.life -= 0.05;
+        ctxV3.fillStyle = s.color;
+        ctxV3.globalAlpha = s.life;
+        ctxV3.fillRect(s.x, s.y, 2, 2);
+        if(s.life <= 0) v3.sparks.splice(i, 1);
+    }
+    ctxV3.globalAlpha = 1.0;
+
+    // 4. Draw the Runner (The particle)
+    ctxV3.shadowBlur = 15;
+    ctxV3.shadowColor = '#00ffcc';
+    ctxV3.fillStyle = '#fff';
+    ctxV3.beginPath();
+    ctxV3.arc(v3.x, v3.y, 3, 0, Math.PI * 2);
     ctxV3.fill();
-    requestAnimationFrame(drawV3);
+    ctxV3.shadowBlur = 0;
+
+    // 5. Screen Flash on Corner Hit
+    if(v3.cornerFlash > 0) {
+        ctxV3.fillStyle = `rgba(255, 0, 85, ${v3.cornerFlash * 0.3})`;
+        ctxV3.fillRect(0, 0, v3.size, v3.size);
+        v3.cornerFlash -= 0.05;
+    }
+
+    // Only run if the tab is active
+    if(document.getElementById('v-winding').classList.contains('active')) {
+        requestAnimationFrame(engineV3);
+    } else {
+        // Pause and wait to be reactivated to save resources
+        setTimeout(() => requestAnimationFrame(engineV3), 100);
+    }
 }
 
-deployNextBlade();
-drawV3();
+// Start V3
+resetV3();
+engineV3();
