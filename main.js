@@ -7,6 +7,9 @@ window.tab = (t) => {
     if(t === 'bot' && window.renderHands) window.renderHands();
     if(t === 'zeta' && window.renderZeta) window.renderZeta();
     if(t === 'analyze' && window.renderAnalyze) window.renderAnalyze();
+// Add this inside your window.tab = (t) => { ... } logic
+if(t === 'reality') renderIsoscelesReality();
+
 };
 
 window.onload = () => {
