@@ -57,6 +57,33 @@ window.onload = () => {
         { name: "α", val: 4.669201609102 }, { name: "ζ(3)", val: 1.202056903159 }, { name: "G", val: 0.915965594177 }
     ];
 
+    // --- UNIVERSAL SAVE SYSTEM ---
+    window.saveProgress = () => {
+        localStorage.setItem('hyper_bots', JSON.stringify(bots));
+        localStorage.setItem('hyper_env', JSON.stringify({
+            scanned: s.scanned, found: s.found, shotsFired: s.shotsFired, recent: s.recent, currentBot: s.currentBot
+        }));
+        localStorage.setItem('hyper_museum', JSON.stringify(museumArtifacts));
+        localStorage.setItem('hyper_zeros', JSON.stringify(verifiedZeros));
+    };
+
+    // --- LOAD SAVED DATA ---
+    if(localStorage.getItem('hyper_bots')) {
+        bots = JSON.parse(localStorage.getItem('hyper_bots'));
+        let savedS = JSON.parse(localStorage.getItem('hyper_env'));
+        s.scanned = savedS.scanned; s.found = savedS.found; s.shotsFired = savedS.shotsFired; 
+        s.recent = savedS.recent; s.currentBot = savedS.currentBot;
+        s.recent.forEach(n => { harmonics[n.bounces]++; }); 
+        
+        if(localStorage.getItem('hyper_museum')) {
+            museumArtifacts = JSON.parse(localStorage.getItem('hyper_museum'));
+        }
+        if(localStorage.getItem('hyper_zeros')) {
+            verifiedZeros = JSON.parse(localStorage.getItem('hyper_zeros'));
+        }
+        updateLeaderboards();
+    }
+
     function updateLeaderboards() {
         let uniqueNodes = [...new Map(s.recent.map(item => [item.bounces + '-' + item.vy.toFixed(4), item])).values()];
         topEfficiency = uniqueNodes.filter(n => n.botType === 'smith').sort((a,b) => a.bounces - b.bounces).slice(0,10);
@@ -120,7 +147,7 @@ window.onload = () => {
 
         if(b.mem !== null && Math.random() < 0.85) {
             if(isKnownArtifact && Math.random() < 0.75) {
-                // The bot realizes it's tracing a known museum artifact. It gets bored and quantum jumps.
+                // Boredom Jump
                 b.mem = null; b.bestLoss = Infinity; b.lastGrad = null;
                 s.vy = b.range[0] + Math.random() * (b.range[1] - b.range[0]);
             } else {
@@ -200,6 +227,7 @@ window.onload = () => {
             if(Math.abs(gradient) < 0.0005 && L1 < 0.05) {
                 if(!verifiedZeros.some(z => Math.abs(z - b.t) < 0.5)) {
                     verifiedZeros.push(b.t);
+                    window.saveProgress(); // Backup instantly
                 }
                 b.t = 10 + Math.random() * 85; 
             } else {
@@ -598,6 +626,7 @@ window.onload = () => {
                             let node = { seq: sig, vx: 5, vy: Math.abs(s.vy), bounces: 1500, botType: 'chaos', topology: topMatch };
                             s.recent.push(node);
                             checkArtifact(node); 
+                            window.saveProgress(); // Backup instantly
 
                             harmonics[1500]++; triggerRipple(s.x, s.y, 1500); updateLeaderboards();
                             if(s.recent.length > 2000) s.recent.shift();
@@ -625,14 +654,10 @@ window.onload = () => {
                         let node = { seq: sig, vx: 5, vy: Math.abs(s.vy), bounces: s.bounces, botType: activeBot.type, topology: topMatch };
                         s.recent.push(node);
                         checkArtifact(node); 
+                        window.saveProgress(); // Backup instantly
 
                         harmonics[s.bounces]++; triggerRipple(s.x, s.y, s.bounces); updateLeaderboards();
                         if(s.recent.length > 2000) s.recent.shift();
-
-                        localStorage.setItem('hyper_bots', JSON.stringify(bots));
-                        localStorage.setItem('hyper_env', JSON.stringify({
-                            scanned: s.scanned, found: s.found, shotsFired: s.shotsFired, recent: s.recent, currentBot: s.currentBot
-                        }));
 
                         if(document.getElementById('v-lab').classList.contains('active')) window.renderSymmetryMap();
                         if(document.getElementById('v-bot').classList.contains('active')) window.renderHands();
