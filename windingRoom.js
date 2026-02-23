@@ -35,6 +35,25 @@ toggleMapBtn.addEventListener('click', () => {
     ruliadBox.style.display = showMap ? 'block' : 'none';
 });
 
+// Supabase Logging Function (Moved outside to the main level)
+async function logDoubleBounceData(windingNum, precision) {
+    try {
+        const { data, error } = await supabase
+            .from('inversion_v3_logs') 
+            .insert([
+                { 
+                    winding_number: windingNum, 
+                    precision_delta: parseFloat(precision.toFixed(5))
+                }
+            ]);
+
+        if (error) throw error;
+        console.log(`Database Log Success | Winding: ${windingNum}, Precision: ${precision.toFixed(5)}`);
+    } catch (err) {
+        console.error("Supabase logging failed. Check table name and permissions:", err.message);
+    }
+}
+
 class WindingSquare {
     constructor(size) {
         this.L = size;
@@ -79,7 +98,7 @@ class WindingSquare {
 
     registerDoubleBounce(p) {
         this.windingNumber++;
-        
+
         // Calculate theoretical absolute vertex
         const targetX = (p.x < this.L / 2) ? 0 : this.L;
         const targetY = (p.y < this.L / 2) ? 0 : this.L;
@@ -91,22 +110,25 @@ class WindingSquare {
         // Update UI
         windingDisplay.innerText = this.windingNumber;
         precisionDisplay.innerText = precisionDelta.toFixed(3);
-        
+
         // Visual flash
         ctxV3.fillStyle = 'rgba(255, 0, 85, 0.5)';
         ctxV3.fillRect(0, 0, this.L, this.L);
+
+        // ---> NEW: Actually call the logging function here <---
+        logDoubleBounceData(this.windingNumber, precisionDelta);
     }
 
     drawTopologyMap() {
         if (!showMap || bounceArtifacts.length < 2) return;
-        
+
         // Clear map
         rCtx.fillStyle = '#111';
         rCtx.fillRect(0, 0, ruliadCanvas.width, ruliadCanvas.height);
 
         rCtx.beginPath();
         rCtx.moveTo(bounceArtifacts[0].x * mapScale, bounceArtifacts[0].y * mapScale);
-        
+
         // Draw the ruliad lines
         for (let i = 1; i < bounceArtifacts.length; i++) {
             rCtx.lineTo(bounceArtifacts[i].x * mapScale, bounceArtifacts[i].y * mapScale);
@@ -128,11 +150,11 @@ canvasV3.addEventListener('mousedown', (e) => {
     particleV3.y = e.clientY - rect.top;
     particleV3.vx = 0; 
     particleV3.vy = 0;
-    
+
     isAimingV3 = true;
     dragStartX = particleV3.x;
     dragStartY = particleV3.y;
-    
+
     // Reset data on new launch
     bounceArtifacts = [];
     rCtx.clearRect(0, 0, ruliadCanvas.width, ruliadCanvas.height);
@@ -152,26 +174,6 @@ canvasV3.addEventListener('mouseup', () => {
         particleV3.vx = (dragStartX - mouseX) * 0.15;
         particleV3.vy = (dragStartY - mouseY) * 0.15;
     }
-
-async function logDoubleBounceData(windingNum, precision) {
-    // Note: This assumes your initialized client is globally named 'supabase'.
-    // If you named it something else in main.js, update it here.
-    try {
-        const { data, error } = await supabase
-            .from('inversion_v3_logs') // Replace with your actual Supabase table name
-            .insert([
-                { 
-                    winding_number: windingNum, 
-                    precision_delta: parseFloat(precision.toFixed(5))
-                }
-            ]);
-
-        if (error) throw error;
-        console.log(`Database Log Success | Winding: ${windingNum}, Precision: ${precision.toFixed(5)}`);
-    } catch (err) {
-        console.error("Supabase logging failed. Check table name and permissions:", err.message);
-    }
-}
 });
 
 // --- Render Loop ---
