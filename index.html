@@ -4,15 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Inversion Sim v2 & v3</title>
-    <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        #v-analyze, #v-reality { padding: 15px; color: #fff; font-family: monospace; overflow-y: auto; box-sizing: border-box; }
+        body { margin: 0; padding: 0; background: #000; color: #fff; font-family: monospace; overflow: hidden; }
+        .view { display: none; position: absolute; top: 0; left: 0; width: 100vw; height: calc(100vh - 50px); }
+        .view.active { display: block; }
+        .nav { position: absolute; bottom: 0; left: 0; width: 100vw; height: 50px; background: #111; display: flex; overflow-x: auto; border-top: 1px solid #333; }
+        .nav button { flex: 1; min-width: 80px; background: none; border: none; color: #888; font-family: monospace; cursor: pointer; font-size: 12px; }
+        .nav button.active { background: #222; font-weight: bold; border-top: 2px solid #fff; }
+        canvas { display: block; margin: 0 auto; }
+        .hud { position: absolute; top: 10px; left: 10px; color: #0f0; font-size: 12px; z-index: 10; pointer-events: none; text-shadow: 1px 1px 2px #000; }
+        .bmc-btn { position: absolute; top: 10px; right: 10px; background: #ffdd00; color: #000; padding: 5px 10px; text-decoration: none; font-weight: bold; font-size: 10px; z-index: 100; border-radius: 3px; }
+        
+        #v-analyze, #v-reality, #v-museum { padding: 15px; color: #fff; overflow-y: auto; box-sizing: border-box; height: 100%; }
         .match-row { border-bottom: 1px solid #333; padding: 5px 0; }
         .match-found { color: #0f0; }
         .no-match { color: #888; }
-
-        /* V3 Specific Styles */
         .highlight { color: #ff0055; font-weight: bold; }
         .ruliad-popup { 
             display: none; position: absolute; top: 50px; right: 50px; 
@@ -22,11 +29,11 @@
     </style>
 </head>
 <body>
-<a href="http://buymeacoffee.com/brandonkennedy" target="_blank" class="bmc-btn">☕ TIP JAR</a>
+    <a href="http://buymeacoffee.com/brandonkennedy" target="_blank" class="bmc-btn">☕ TIP JAR</a>
 
     <div id="v-sim" class="view active">
         <div class="hud">
-            <span>NODE_DISTRIBUTED</span>
+            <span>NODE_DISTRIBUTED</span><br>
             <span id="pos-display">INITIALIZING ENGINE...</span>
         </div>
         <canvas id="c-phys"></canvas>
@@ -37,37 +44,24 @@
     <div id="v-hyper" class="view"><canvas id="c-hyper"></canvas></div>
     <div id="v-zeta" class="view"><canvas id="c-zeta"></canvas></div>
     <div id="v-analyze" class="view"></div>
-    
     <div id="v-reality" class="view"></div>
+    <div id="v-museum" class="view"></div>
 
     <div id="v-winding" class="view">
-        <div style="text-align: center; margin-bottom: 10px; padding-top: 20px; font-family: monospace;">
+        <div style="text-align: center; margin-bottom: 10px; padding-top: 20px;">
             Winding Number: <span id="windingDisplay" class="highlight">0</span> | 
             Precision Δ: <span id="precisionDisplay" class="highlight">0.000</span>
         </div>
-
-        <div style="text-align: center; margin-bottom: 10px; font-family: monospace; color: #888; font-size: 0.9rem;">
-            [SMITH] Forging Angle: <span id="smithAngle" style="color: #0ff;">0.000 rad</span> | 
-            [BLADE] Active Run Bounces: <span id="bladeBounces" style="color: #0f0;">0</span>/50
+        <div style="text-align: center; margin-bottom: 10px; color: #888; font-size: 0.9rem;">
+            [V3 ENGINE] Corner Detection Active | Calculating Winding Ratios
         </div>
-
         <div style="display: flex; justify-content: center;">
-            <canvas id="simCanvasV3" width="600" height="600" style="border: 2px solid #00ffcc; background: #1a1a1a; cursor: crosshair;"></canvas>
-        </div>
-
-        <div style="text-align: center; margin-top: 15px;">
-            <button id="toggleMapBtn" style="background:#222; color:#00ffcc; border:1px solid #00ffcc; padding:8px; cursor:pointer; font-family: monospace;">Toggle Ruliad Topology Map</button>
-        </div>
-
-        <div id="ruliadBox" class="ruliad-popup">
-            <div style="color: #ff0055; margin-bottom: 8px; text-align: center; font-family: monospace; font-size: 0.9rem;">RULIAD TOPOLOGY PATTERN</div>
-            <canvas id="ruliadCanvas" width="300" height="300" style="background: #111; border: 1px solid #444;"></canvas>
+            <canvas id="simCanvasV3" width="500" height="500" style="border: 2px solid #00ffcc; background: #050505;"></canvas>
         </div>
     </div>
 
     <nav class="nav">
         <button onclick="tab('winding')" id="b-winding" style="color:#00ffcc;">V3</button>
-
         <button onclick="tab('sim')" id="b-sim" class="active">EYES</button>
         <button onclick="tab('lab')" id="b-lab">BRAIN</button>
         <button onclick="tab('bot')" id="b-bot">HANDS</button>
@@ -75,6 +69,7 @@
         <button onclick="tab('zeta')" id="b-zeta" style="color:#ff8c00;">ZETA</button>
         <button onclick="tab('analyze')" id="b-analyze" style="color:#ff00ff;">ANALYZE</button>
         <button onclick="tab('reality')" id="b-reality" style="color:#00ff55;">REALITY</button>
+        <button onclick="tab('museum')" id="b-museum" style="color:#d4af37;">MUSEUM</button>
         <button onclick="injectVy()" style="color:#fff;">INJECT</button>
         <button onclick="downloadData()" style="background:#0ff; color:#000;">SAVE</button>
     </nav>
