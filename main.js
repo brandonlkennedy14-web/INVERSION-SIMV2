@@ -36,7 +36,7 @@ window.onload = () => {
     const ch = document.getElementById('c-hyper'), ctxH = ch.getContext('2d');
     const cHand = document.getElementById('c-hands'), ctxHand = cHand.getContext('2d');
     const cZeta = document.getElementById('c-zeta'), ctxZ = cZeta.getContext('2d');
-    
+
     cp.width = cb.width = ch.width = cHand.width = cZeta.width = 500; 
     cp.height = cb.height = ch.height = cHand.height = cZeta.height = 500; 
     const posEl = document.getElementById('pos-display');
@@ -171,7 +171,7 @@ window.onload = () => {
 
     let verifiedZeros = [];
     let zetaCache = []; 
-    
+
     function calcZetaMagnitude(t) {
         let reEta = 0, imEta = 0; let terms = 150; 
         for(let n=1; n<=terms; n++) {
@@ -201,12 +201,11 @@ window.onload = () => {
         zetaBots.forEach(b => {
             let L1 = calcZetaMagnitude(b.t); let L2 = calcZetaMagnitude(b.t + 0.001);
             let gradient = (L2 - L1) / 0.001;
-            
+
             if(Math.abs(gradient) < 0.0005 && L1 < 0.05) {
                 if(!verifiedZeros.some(z => Math.abs(z - b.t) < 0.5)) {
                     verifiedZeros.push(b.t);
                 }
-                // FINAL FIX: Hyperspace jump out of the valley entirely
                 b.t = 10 + Math.random() * 85; 
             } else {
                 b.t = b.t - (gradient * 0.01); 
@@ -219,8 +218,8 @@ window.onload = () => {
     window.renderZeta = () => {
         ctxZ.fillStyle = 'rgba(0,0,0,0.5)'; ctxZ.fillRect(0,0,500,500);
         ctxZ.fillStyle = '#ff8c00'; ctxZ.font = '12px monospace';
-        ctxZ.fillText("[VIEW: RIEMANN ZETA FRACTAL HUNT | Re(s) = 1/2]", 10, 20);
-        
+        ctxZ.fillText("[VIEW: RIEMANN ZETA FRACTAL Hunt | Re(s) = 1/2]", 10, 20);
+
         ctxZ.strokeStyle = 'rgba(255, 255, 255, 0.4)'; ctxZ.lineWidth = 1.5; ctxZ.beginPath();
         zetaCache.forEach((pt, idx) => {
             let y = (pt.t / 100) * 500;
@@ -228,7 +227,7 @@ window.onload = () => {
             if(idx === 0) ctxZ.moveTo(x, y); else ctxZ.lineTo(x, y);
         });
         ctxZ.stroke();
-        
+
         ctxZ.strokeStyle = 'rgba(0, 255, 255, 0.2)'; ctxZ.beginPath(); ctxZ.moveTo(250, 0); ctxZ.lineTo(250, 500); ctxZ.stroke();
 
         verifiedZeros.forEach(z => {
@@ -263,7 +262,7 @@ window.onload = () => {
             if(i === 0) ctxH.moveTo(pt.x, pt.y); else ctxH.lineTo(pt.x, pt.y);
         }
         ctxH.stroke();
-        
+
         s.recent.forEach((item) => {
             let u = ((item.vy - 5) / 4) * Math.PI * 2; let v = (item.bounces / 201) * Math.PI * 2; 
             let px = (R + r * Math.cos(v)) * Math.cos(u); let py = (R + r * Math.cos(v)) * Math.sin(u); let pz = r * Math.sin(v);
@@ -284,12 +283,12 @@ window.onload = () => {
         ctxH.stroke();
 
         let syncGlow = gridPulse.alpha > 0.1 ? gridPulse.alpha * 20 : 0;
-        
+
         verifiedZeros.forEach(z => {
             let u = (z / 100) * Math.PI * 4;
             let px = (R + r) * Math.cos(u); let py = (R + r) * Math.sin(u); let pz = 0;
             let pt = project3D(px, py, pz);
-            
+
             ctxH.shadowBlur = syncGlow; ctxH.shadowColor = '#ffd700';
             ctxH.strokeStyle = '#ffd700'; ctxH.beginPath(); ctxH.arc(pt.x, pt.y, 6, 0, Math.PI*2); ctxH.stroke();
             ctxH.shadowBlur = 0;
@@ -319,7 +318,7 @@ window.onload = () => {
 
         ctxHand.fillStyle = '#fff'; ctxHand.fillText("STRUCTURAL FREQUENCY (Bounces 1 -> 1500)", 10, 200);
         ctxHand.strokeStyle = 'rgba(255, 255, 255, 0.2)'; ctxHand.strokeRect(10, 210, 480, 280);
-        
+
         let maxSpike = Math.max(...harmonics.slice(1), 1);
         ctxHand.beginPath();
         for(let i = 1; i <= 1500; i++) {
@@ -332,7 +331,7 @@ window.onload = () => {
 
     window.renderSymmetryMap = () => {
         ctxB.fillStyle = '#000'; ctxB.fillRect(0,0,500,500);
-        
+
         ctxB.strokeStyle = 'rgba(255, 255, 255, 0.05)'; ctxB.lineWidth = 1;
         for(let i=0; i<=500; i+=50) { 
             ctxB.beginPath(); ctxB.moveTo(i, 0); ctxB.lineTo(i, 500); ctxB.stroke(); 
@@ -395,9 +394,36 @@ window.onload = () => {
             let pipSize = 130;
             let pipX = 500 - pipSize - 10;
             let pipY = 40;
-            
+
             ctxB.fillStyle = 'rgba(0, 0, 0, 0.85)'; ctxB.fillRect(pipX, pipY, pipSize, pipSize);
             ctxB.strokeStyle = 'rgba(0, 255, 255, 0.5)'; ctxB.strokeRect(pipX, pipY, pipSize, pipSize);
+
+            // ---- NEW RULIAD WEB LOGIC IN REPLAY BOX ----
+            if (replay.trail.length > 1) {
+                ctxB.strokeStyle = 'rgba(0, 255, 204, 0.4)'; 
+                ctxB.lineWidth = 1;
+                ctxB.beginPath();
+                
+                let simX = 250, simY = 250, sVx = replay.node.vx, sVy = replay.node.vy;
+                let bounceHistory = [{x: simX, y: simY}];
+                
+                for (let i = 0; i < replay.bounces; i++) {
+                     let tX = sVx > 0 ? (500 - simX)/sVx : (0 - simX)/sVx;
+                     let tY = sVy > 0 ? (500 - simY)/sVy : (0 - simY)/sVy;
+                     let t = Math.min(tX, tY);
+                     simX += sVx * t; simY += sVy * t;
+                     bounceHistory.push({x: simX, y: simY});
+                     if (t === tX) sVx *= -1;
+                     if (t === tY) sVy *= -1;
+                }
+
+                ctxB.moveTo(pipX + (bounceHistory[0].x / 500) * pipSize, pipY + (bounceHistory[0].y / 500) * pipSize);
+                for(let i = 1; i < bounceHistory.length; i++) {
+                    ctxB.lineTo(pipX + (bounceHistory[i].x / 500) * pipSize, pipY + (bounceHistory[i].y / 500) * pipSize);
+                }
+                ctxB.stroke();
+            }
+            // ---------------------------------------------
 
             let dotX = pipX + (replay.x / 500) * pipSize;
             let dotY = pipY + (replay.y / 500) * pipSize;
@@ -416,10 +442,10 @@ window.onload = () => {
     window.renderAnalyze = () => {
         let aDiv = document.getElementById('v-analyze');
         let html = `<h2>[TOPOLOGICAL CONSTANT ANALYZER]</h2>`;
-        
+
         let voids = [...new Map(s.recent.filter(n => n.bounces === 1500).map(item => [item.vy.toFixed(6), item])).values()];
         let orbits = [...new Map(s.recent.filter(n => n.bounces < 1500 && n.bounces > 0).map(item => [item.vy.toFixed(6), item])).values()].slice(0, 15);
-        
+
         html += `<h3 style="color:#ff8c00;">[IRRATIONAL CHAOS VOIDS - 1500b]</h3>`;
         if(voids.length === 0) {
             html += `<p class="no-match">No Chaos Voids detected yet.</p>`;
@@ -438,7 +464,7 @@ window.onload = () => {
                 html += `<div class="match-row" style="color:#0ff;"><strong>ORBIT:</strong> Vy = ${o.vy.toFixed(6)} | <strong>BOUNCES:</strong> ${o.bounces} | <strong>MATCH:</strong> ${o.topology}</div>`;
             });
         }
-        
+
         aDiv.innerHTML = html;
     };
 
@@ -458,7 +484,7 @@ window.onload = () => {
             ctxP.fillStyle = 'rgba(0,0,0,0.02)'; ctxP.fillRect(0,0,500,500);
             let aColor = getFrequencyColor(replay.bounces); ctxP.shadowBlur = 15; ctxP.shadowColor = `rgb(${aColor})`;
             ctxP.fillStyle = '#fff'; ctxP.fillRect(replay.x-2, replay.y-2, 4, 4); ctxP.shadowBlur = 0;
-            
+
             if(document.getElementById('v-lab').classList.contains('active')) window.renderSymmetryMap();
         } else {
             for(let i = 0; i < 1000; i++) {
@@ -484,10 +510,10 @@ window.onload = () => {
                         let sig = `CHAOS VOID: Vy ${Math.abs(s.vy).toFixed(5)} | INFINITE`;
                         if(!s.recent.some(r => r.seq === sig)) {
                             s.found++; activeBot.score += 1500; 
-                            
+
                             let topMatch = getTopology(Math.abs(s.vy), true);
                             s.recent.push({ seq: sig, vx: 5, vy: Math.abs(s.vy), bounces: 1500, botType: 'chaos', topology: topMatch });
-                            
+
                             harmonics[1500]++; triggerRipple(s.x, s.y, 1500); updateLeaderboards();
                             if(s.recent.length > 2000) s.recent.shift();
                             if(document.getElementById('v-lab').classList.contains('active')) window.renderSymmetryMap();
@@ -508,12 +534,12 @@ window.onload = () => {
                         s.found++;
                         if(activeBot.type === 'smith') activeBot.score += Math.max(10, 500 - s.bounces); 
                         if(activeBot.type === 'blade') activeBot.score += s.bounces; 
-                        
+
                         let topMatch = getTopology(Math.abs(s.vy), false);
                         s.recent.push({ seq: sig, vx: 5, vy: Math.abs(s.vy), bounces: s.bounces, botType: activeBot.type, topology: topMatch });
                         harmonics[s.bounces]++; triggerRipple(s.x, s.y, s.bounces); updateLeaderboards();
                         if(s.recent.length > 2000) s.recent.shift();
-                        
+
                         localStorage.setItem('hyper_bots', JSON.stringify(bots));
                         localStorage.setItem('hyper_env', JSON.stringify({
                             scanned: s.scanned, found: s.found, shotsFired: s.shotsFired, recent: s.recent, currentBot: s.currentBot
@@ -563,18 +589,18 @@ window.onload = () => {
             ctxP.shadowBlur = 15; ctxP.shadowColor = `rgb(${aColor})`;
             let activeBot = bots[s.currentBot]; ctxP.fillStyle = activeBot.color; ctxP.fillRect(s.x-2, s.y-2, 4, 4);
             ctxP.shadowBlur = 0;
-            
+
             ctxP.fillStyle = 'rgba(0,0,0,0.75)'; ctxP.fillRect(0, 0, 500, 35);
-            
+
             let chaos = s.shotsFired > 0 ? (((s.shotsFired - s.found) / s.shotsFired) * 100).toFixed(2) : 100.00;
             let smithTotal = bots.filter(b=>b.type==='smith').reduce((a,b)=>a+b.score, 0);
             let bladeTotal = bots.filter(b=>b.type==='blade').reduce((a,b)=>a+b.score, 0);
-            
+
             ctxP.font = '11px monospace';
             ctxP.fillStyle = '#ff0'; ctxP.fillText(`CHAOS: ${chaos}%`, 10, 14);
             ctxP.fillStyle = '#0f0'; ctxP.fillText(`SMITHS: ${smithTotal.toLocaleString()}`, 130, 14);
             ctxP.fillStyle = '#f0f'; ctxP.fillText(`BLADES: ${bladeTotal.toLocaleString()}`, 280, 14);
-            
+
             let tE = topEfficiency[0] ? topEfficiency[0].vy.toFixed(6) : 'N/A';
             let tC = topComplexity[0] ? topComplexity[0].vy.toFixed(6) : 'N/A';
             ctxP.fillStyle = '#fff'; ctxP.fillText(`TOP EFFICIENT: ${tE} | TOP COMPLEX: ${tC}`, 10, 28);
@@ -591,7 +617,7 @@ window.onload = () => {
 
         if(document.getElementById('v-hyper').classList.contains('active')) window.renderHyper();
         if(document.getElementById('v-zeta').classList.contains('active')) window.renderZeta();
-        
+
         posEl.innerText = `SCANNED: ${s.scanned} | MELLI NODES & VOIDS: ${s.found}`;
         requestAnimationFrame(engine);
     }
