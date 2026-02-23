@@ -622,4 +622,47 @@ window.onload = () => {
         requestAnimationFrame(engine);
     }
     reseed(); engine();
+// --- FINAL REALITY TAB INTEGRATION ---
+function renderIsoscelesReality() {
+    const vReality = document.getElementById('v-reality');
+    // Ensure canvas exists in the tab
+    let canvasR = document.getElementById('c-reality');
+    if (!canvasR) {
+        canvasR = document.createElement('canvas');
+        canvasR.id = 'c-reality';
+        canvasR.width = 500;
+        canvasR.height = 500;
+        vReality.appendChild(canvasR);
+    }
+    const ctxR = canvasR.getContext('2d');
+
+    // Clear and Draw Boundary
+    ctxR.fillStyle = '#000';
+    ctxR.fillRect(0, 0, 500, 500);
+    
+    const apexX = 250, apexY = 40, baseY = 460, baseWidth = 420;
+    ctxR.strokeStyle = 'rgba(0, 255, 255, 0.2)';
+    ctxR.beginPath();
+    ctxR.moveTo(apexX, apexY);
+    ctxR.lineTo(apexX - baseWidth/2, baseY);
+    ctxR.lineTo(apexX + baseWidth/2, baseY);
+    ctxR.closePath();
+    ctxR.stroke();
+
+    // Map s.recent points into the triangle
+    s.recent.forEach(item => {
+        // Vy (5-9) normalized to X, Bounces (0-1500) normalized to Y
+        let nY = item.bounces / 1500; 
+        let nX = (item.vy - 5) / 4; 
+
+        // The Isosceles Transform
+        let yPos = apexY + (nY * (baseY - apexY));
+        let xPos = apexX + (nX - 0.5) * (nY * baseWidth);
+
+        ctxR.fillStyle = item.botType === 'smith' ? '#0f0' : '#f0f';
+        ctxR.beginPath();
+        ctxR.arc(xPos, yPos, 2, 0, Math.PI * 2);
+        ctxR.fill();
+    });
+}
 };
