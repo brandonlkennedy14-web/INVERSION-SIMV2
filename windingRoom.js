@@ -23,7 +23,7 @@ let particleV3 = { x: LV3 / 2, y: LV3 / 2, vx: 0, vy: 0, radius: 4 };
 let smithAngle = 0.1; // Starting angle in radians
 let activeBounces = 0;
 const MAX_BOUNCES_PER_RUN = 50; // Blade dies and resets after this many bounces
-const LAUNCH_SPEED = 8;
+const LAUNCH_SPEED = 12; // Speed of the autonomous runs
 
 let bounceArtifacts = [];
 let showMap = false;
@@ -35,18 +35,22 @@ toggleMapBtn.addEventListener('click', () => {
 
 async function logDoubleBounceData(windingNum, precision) {
     try {
-        const { data, error } = await supabase
-            .from('inversion_v3_logs') 
-            .insert([{ winding_number: windingNum, precision_delta: parseFloat(precision.toFixed(5)) }]);
-        if (error) throw error;
-        console.log(`Database Log Success | Winding: ${windingNum}, Precision: ${precision.toFixed(5)}`);
-    } catch (err) {}
+        if (typeof supabase !== 'undefined') {
+            const { data, error } = await supabase
+                .from('inversion_v3_logs') 
+                .insert([{ winding_number: windingNum, precision_delta: parseFloat(precision.toFixed(5)) }]);
+            if (error) throw error;
+            console.log(`Database Log Success | Winding: ${windingNum}, Precision: ${precision.toFixed(5)}`);
+        }
+    } catch (err) {
+        // Fail silently if table doesn't exist yet so it doesn't break the UI
+    }
 }
 
 // Logic to automatically deploy a new run
 function deployNextBlade() {
     smithAngle += 0.005; // Smith increments the search angle systematically
-    smithAngleDisplay.innerText = smithAngle.toFixed(3) + ' rad';
+    if (smithAngleDisplay) smithAngleDisplay.innerText = smithAngle.toFixed(3) + ' rad';
     
     particleV3.x = LV3 / 2;
     particleV3.y = LV3 / 2;
@@ -87,7 +91,7 @@ class WindingSquare {
 
         if (hitX || hitY) {
             activeBounces++;
-            bladeBouncesDisplay.innerText = activeBounces;
+            if (bladeBouncesDisplay) bladeBouncesDisplay.innerText = activeBounces;
             bounceArtifacts.push({ x: p.x, y: p.y });
             this.drawTopologyMap();
 
@@ -98,6 +102,7 @@ class WindingSquare {
             }
         }
 
+        // DOUBLE BOUNCE (Corner Hit)
         if (hitX && hitY) {
             this.registerDoubleBounce(p);
             deployNextBlade(); // Immediately launch next run after a successful hit
@@ -112,8 +117,8 @@ class WindingSquare {
         const errorY = Math.abs(p.y - targetY);
         const precisionDelta = Math.sqrt(errorX * errorX + errorY * errorY);
 
-        windingDisplay.innerText = this.windingNumber;
-        precisionDisplay.innerText = precisionDelta.toFixed(3);
+        if (windingDisplay) windingDisplay.innerText = this.windingNumber;
+        if (precisionDisplay) precisionDisplay.innerText = precisionDelta.toFixed(3);
         
         ctxV3.fillStyle = 'rgba(255, 0, 85, 0.5)';
         ctxV3.fillRect(0, 0, this.L, this.L);
