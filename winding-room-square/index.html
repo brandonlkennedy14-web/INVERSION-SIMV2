@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Inversion Sim v3</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #111;
+            color: #eee;
+            margin: 0;
+            font-family: monospace;
+        }
+        canvas {
+            border: 2px solid #00ffcc;
+            background-color: #222;
+            box-shadow: 0 0 20px rgba(0, 255, 204, 0.1);
+            margin-top: 20px;
+        }
+        #hud {
+            text-align: center;
+            font-size: 1.2rem;
+        }
+        .highlight {
+            color: #ff0055;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="hud">
+        Winding Number: <span id="windingDisplay" class="highlight">0</span> | 
+        Last Precision Δ: <span id="precisionDisplay" class="highlight">0.000</span>
+    </div>
+
+    <canvas id="simCanvas" width="600" height="600"></canvas>
+
+    <script>
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const L = canvas.width;
+
+        // UI Elements
+        const windingDisplay = document.getElementById('windingDisplay');
+        const precisionDisplay = document.getElementById('precisionDisplay');
+
+        // Particle State
+        let particle = {
+            x: L / 2,
+            y: L / 2,
+            vx: 7.3, // Non-integer velocities help prevent repeating infinite loops
+            vy: 4.1,
+            radius: 5
+        };
+
+        class WindingSquare {
+            constructor(size) {
+                this.L = size;
+                this.windingNumber = 0;
+            }
+
+            updateState(p) {
+                let hitX = false;
+                let hitY = false;
+
+                // Move particle
+                p.x += p.vx;
+                p.y += p.vy;
+
+                // X-axis boundaries
+                if (p.x - p.radius <= 0 || p.x + p.radius >= this.L) {
+                    hitX = true;
+                    p.vx *= -1; 
+                    // Snap to boundary to prevent sticking
+                    p.x = p.x - p.radius <= 0 ? p.radius : this.L - p.radius; 
+                }
+
+                // Y-axis boundaries
+                if (p.y - p.radius <= 0 || p.y + p.radius >= this.L) {
+                    hitY = true;
+                    p.vy *= -1;
+                    p.y = p.y - p.radius <= 0 ? p.radius : this.L - p.radius;
+                }
+
+                // The "Double Bounce" (Corner Hit)
+                if (hitX && hitY) {
+                    this.registerDoubleBounce(p);
+                }
+            }
+
+            registerDoubleBounce(p) {
+                this.windingNumber++;
+                
+                // Determine geometric absolute vertex
+                const targetX = (p.x < this.L / 2) ? 0 : this.L;
+                const targetY = (p.y < this.L / 2) ? 0 : this.L;
+
+                const errorX = Math.abs(p.x - targetX);
+                const errorY = Math.abs(p.y - targetY);
+                const precisionDelta = Math.sqrt(errorX * errorX + errorY * errorY);
+
+                // Update UI
+                windingDisplay.innerText = this.windingNumber;
+                precisionDisplay.innerText = precisionDelta.toFixed(3);
+            }
+        }
+
+        const engine = new WindingSquare(L);
+
+        // Render Loop
+        function draw() {
+            // Fade effect for trails
+            ctx.fillStyle = 'rgba(34, 34, 34, 0.3)';
+            ctx.fillRect(0, 0, L, L);
+
+            engine.updateState(particle);
+
+            // Draw particle
+            ctx.beginPath();
+            ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+            ctx.fillStyle = '#00ffcc';
+            ctx.fill();
+            ctx.closePath();
+
+            requestAnimationFrame(draw);
+        }
+
+        draw();
+    </script>
+</body>
+</html>
