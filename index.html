@@ -7,11 +7,11 @@
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        #v-analyze { padding: 15px; color: #fff; font-family: monospace; overflow-y: auto; box-sizing: border-box; }
+        #v-analyze, #v-reality { padding: 15px; color: #fff; font-family: monospace; overflow-y: auto; box-sizing: border-box; }
         .match-row { border-bottom: 1px solid #333; padding: 5px 0; }
         .match-found { color: #0f0; }
         .no-match { color: #888; }
-        
+
         /* V3 Specific Styles */
         .highlight { color: #ff0055; font-weight: bold; }
         .ruliad-popup { 
@@ -23,7 +23,7 @@
 </head>
 <body>
 <a href="http://buymeacoffee.com/brandonkennedy" target="_blank" class="bmc-btn">☕ TIP JAR</a>
-    
+
     <div id="v-sim" class="view active">
         <div class="hud">
             <span>NODE_DISTRIBUTED</span>
@@ -37,22 +37,24 @@
     <div id="v-hyper" class="view"><canvas id="c-hyper"></canvas></div>
     <div id="v-zeta" class="view"><canvas id="c-zeta"></canvas></div>
     <div id="v-analyze" class="view"></div>
+    
+    <div id="v-reality" class="view"></div>
 
     <div id="v-winding" class="view">
         <div style="text-align: center; margin-bottom: 10px; padding-top: 20px; font-family: monospace;">
             Winding Number: <span id="windingDisplay" class="highlight">0</span> | 
             Precision Δ: <span id="precisionDisplay" class="highlight">0.000</span>
         </div>
-        
+
         <div style="text-align: center; margin-bottom: 10px; font-family: monospace; color: #888; font-size: 0.9rem;">
             [SMITH] Forging Angle: <span id="smithAngle" style="color: #0ff;">0.000 rad</span> | 
             [BLADE] Active Run Bounces: <span id="bladeBounces" style="color: #0f0;">0</span>/50
         </div>
-        
+
         <div style="display: flex; justify-content: center;">
             <canvas id="simCanvasV3" width="600" height="600" style="border: 2px solid #00ffcc; background: #1a1a1a; cursor: crosshair;"></canvas>
         </div>
-        
+
         <div style="text-align: center; margin-top: 15px;">
             <button id="toggleMapBtn" style="background:#222; color:#00ffcc; border:1px solid #00ffcc; padding:8px; cursor:pointer; font-family: monospace;">Toggle Ruliad Topology Map</button>
         </div>
@@ -65,18 +67,18 @@
 
     <nav class="nav">
         <button onclick="tab('winding')" id="b-winding" style="color:#00ffcc;">V3</button>
-        
+
         <button onclick="tab('sim')" id="b-sim" class="active">EYES</button>
         <button onclick="tab('lab')" id="b-lab">BRAIN</button>
         <button onclick="tab('bot')" id="b-bot">HANDS</button>
         <button onclick="tab('hyper')" id="b-hyper">HYPER</button>
         <button onclick="tab('zeta')" id="b-zeta" style="color:#ff8c00;">ZETA</button>
         <button onclick="tab('analyze')" id="b-analyze" style="color:#ff00ff;">ANALYZE</button>
+        <button onclick="tab('reality')" id="b-reality" style="color:#00ff55;">REALITY</button>
         <button onclick="injectVy()" style="color:#fff;">INJECT</button>
         <button onclick="downloadData()" style="background:#0ff; color:#000;">SAVE</button>
     </nav>
 
-    <script src="cloud.js"></script>
     <script src="main.js"></script>
     <script src="windingRoom.js"></script>
 </body>
