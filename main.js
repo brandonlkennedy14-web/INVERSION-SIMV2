@@ -188,24 +188,90 @@ window.onload = () => {
         }
     };
 
-    // --- SAVE / LOAD ---
+    // --- SUPABASE SETUP ---
+    const SUPABASE_URL      = 'https://jeddcrgchxvdihmxuxpr.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImplZGRjcmdjaHh2ZGlobXh1eHByIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0MDQ4NjAsImV4cCI6MjA4Njk4MDg2MH0.WnCrWYXYsJPlxMj-RisMHBCveKUgI7HlBh0Peh1T6Vw';
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // --- SAVE to Supabase genesis_brain ---
+    let _saveTimer = null;
     window.saveProgress = () => {
-        localStorage.setItem('hyper_bots',    JSON.stringify(bots));
-        localStorage.setItem('hyper_env',     JSON.stringify({ scanned:s.scanned, found:s.found, shotsFired:s.shotsFired, recent:s.recent, currentBot:s.currentBot }));
-        localStorage.setItem('hyper_museum',  JSON.stringify(museumArtifacts));
-        localStorage.setItem('hyper_zeros',   JSON.stringify(verifiedZeros));
+        // Debounce — don't hammer the DB on every discovery
+        clearTimeout(_saveTimer);
+        _saveTimer = setTimeout(async () => {
+            const payload = {
+                bots:     bots,
+                env:      { scanned:s.scanned, found:s.found, shotsFired:s.shotsFired, recent:s.recent.slice(-500), currentBot:s.currentBot },
+                museum:   museumArtifacts,
+                zeros:    verifiedZeros
+            };
+            try {
+                await db.from('genesis_brain').upsert({
+                    namespace: 'inversion_sim',
+                    version:   (s.found || 0),
+                    payload:   payload
+                }, { onConflict: 'namespace' });
+            } catch(e) {
+                // Fallback to localStorage if Supabase unreachable
+                localStorage.setItem('hyper_bots',   JSON.stringify(bots));
+                localStorage.setItem('hyper_env',    JSON.stringify(payload.env));
+                localStorage.setItem('hyper_museum', JSON.stringify(museumArtifacts));
+                localStorage.setItem('hyper_zeros',  JSON.stringify(verifiedZeros));
+            }
+        }, 1500);
     };
 
-    if(localStorage.getItem('hyper_bots')) {
-        bots = JSON.parse(localStorage.getItem('hyper_bots'));
-        const savedS = JSON.parse(localStorage.getItem('hyper_env'));
-        s.scanned = savedS.scanned; s.found = savedS.found; s.shotsFired = savedS.shotsFired;
-        s.recent = savedS.recent;   s.currentBot = savedS.currentBot;
-        s.recent.forEach(n => { harmonics[Math.min(n.bounces, 1504)]++; });
-        if(localStorage.getItem('hyper_museum')) museumArtifacts = JSON.parse(localStorage.getItem('hyper_museum'));
-        if(localStorage.getItem('hyper_zeros'))  verifiedZeros   = JSON.parse(localStorage.getItem('hyper_zeros'));
-        updateLeaderboards();
-    }
+    // --- LOAD from Supabase genesis_brain, fallback to localStorage ---
+    const _loadProgress = async () => {
+        try {
+            const { data, error } = await db
+                .from('genesis_brain')
+                .select('payload')
+                .eq('namespace', 'inversion_sim')
+                .single();
+
+            if (data?.payload) {
+                const p = data.payload;
+                if (p.bots)   bots = p.bots;
+                if (p.env)  {
+                    s.scanned = p.env.scanned; s.found = p.env.found;
+                    s.shotsFired = p.env.shotsFired; s.recent = p.env.recent || [];
+                    s.currentBot = p.env.currentBot;
+                    s.recent.forEach(n => { harmonics[Math.min(n.bounces, 1504)]++; });
+                }
+                if (p.museum) museumArtifacts = p.museum;
+                if (p.zeros)  verifiedZeros   = p.zeros;
+                updateLeaderboards();
+                showToast('BRAIN LOADED ✓');
+                return;
+            }
+        } catch(e) { /* fall through to localStorage */ }
+
+        // Fallback — localStorage
+        if(localStorage.getItem('hyper_bots')) {
+            bots = JSON.parse(localStorage.getItem('hyper_bots'));
+            const savedS = JSON.parse(localStorage.getItem('hyper_env'));
+            s.scanned = savedS.scanned; s.found = savedS.found; s.shotsFired = savedS.shotsFired;
+            s.recent = savedS.recent;   s.currentBot = savedS.currentBot;
+            s.recent.forEach(n => { harmonics[Math.min(n.bounces, 1504)]++; });
+            if(localStorage.getItem('hyper_museum')) museumArtifacts = JSON.parse(localStorage.getItem('hyper_museum'));
+            if(localStorage.getItem('hyper_zeros'))  verifiedZeros   = JSON.parse(localStorage.getItem('hyper_zeros'));
+            updateLeaderboards();
+            showToast('LOADED FROM LOCAL (offline)');
+        }
+    };
+    _loadProgress();
+
+    // --- REALTIME — receive discoveries from other apps ---
+    db.channel('genesis_brain_changes')
+        .on('postgres_changes', { event:'UPDATE', schema:'public', table:'genesis_brain' }, payload => {
+            const ns = payload.new?.namespace;
+            if (ns && ns !== 'inversion_sim') {
+                // Another app wrote — log it but don't overwrite our state
+                showToast(`◈ BRAIN UPDATE from [${ns}]`);
+            }
+        })
+        .subscribe();
 
     function updateLeaderboards() {
         const unique = [...new Map(s.recent.map(item => [item.bounces+'-'+item.vy.toFixed(4), item])).values()];
