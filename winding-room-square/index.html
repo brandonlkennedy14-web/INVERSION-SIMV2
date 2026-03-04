@@ -2,135 +2,892 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Inversion Sim v3</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Inversion // Absolute Unified V44 - Supabase</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background-color: #111;
-            color: #eee;
-            margin: 0;
+        :root { 
+            --neon-g: #0f0; --neon-p: #f0f; --neon-b: #0ff; 
+            --v3-glow: #00ffcc; --gold: #ffd700; --neon-y: #ffff00;
+            --neon-r: #ff0033;
+        }
+        body { 
+            margin: 0; background: #000; color: var(--neon-g); font-family: monospace; 
+            height: 100vh; display: flex; flex-direction: column; overflow: hidden; 
+        }
+
+        .grid-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: 
+                linear-gradient(rgba(0, 255, 255, 0.12) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 255, 0.12) 1px, transparent 1px);
+            background-size: 25px 25px;
+            pointer-events: none; z-index: 500;
+        }
+
+        .nav { 
+            display: flex; background: #111; height: 60px; border-top: 1px solid var(--neon-g); 
+            position: fixed; bottom: 0; width: 100%; z-index: 1000;
+        }
+        .nav button { 
+            flex: 1; background: none; border: none; color: #555; 
+            font-size: 8px; font-weight: bold; cursor: pointer; 
+            text-transform: uppercase; transition: all 0.2s;
+            border-top: 3px solid transparent;
+        }
+        .nav button.active { 
+            color: #fff; background: #1a1a1a; 
+            border-top: 3px solid var(--neon-b);
+            box-shadow: inset 0 0 15px rgba(0, 255, 255, 0.3);
+            text-shadow: 0 0 10px var(--neon-b);
+        }
+
+        .view { display: none; flex: 1; flex-direction: column; padding: 10px; padding-bottom: 70px; box-sizing: border-box; width: 100%; height: 100%; z-index: 10; }
+        .view.active { display: flex; }
+
+        canvas { background: #000; border: 1px solid #333; display: block; margin: auto; position: relative; }
+
+        .hud { 
+            display: flex; justify-content: space-between; font-size: 9px; 
+            color: var(--neon-p); padding: 5px; width: 100%; 
+            max-width: 440px; margin: 0 0 0 15px; z-index: 600; 
+        }
+
+        #log { font-size: 10px; color: var(--neon-b); white-space: pre-wrap; flex: 1; padding: 10px; background: #080808; overflow-y: scroll; border: 1px solid #111; }
+
+        .math-overlay {
+            position: absolute; top: 70px; left: 20px; font-size: 8px; 
+            color: var(--neon-b); background: rgba(0,0,0,0.8); 
+            padding: 10px; border: 1px solid #222; pointer-events: none; z-index: 700;
+        }
+
+        .museum-layout { display: flex; flex-direction: column; gap: 10px; flex: 1; overflow: hidden; }
+        .museum-scroll { flex: 1; overflow-y: auto; padding-right: 5px; }
+        .category-header { font-size: 10px; color: var(--gold); border-bottom: 1px solid #333; padding: 5px 0; margin-top: 10px; font-weight: bold; }
+
+        .artifact-card { 
+            border-left: 4px solid #333; background: #0a0a0a; padding: 10px; 
+            margin-bottom: 4px; font-size: 9px; display: flex; 
+            justify-content: space-between; align-items: center; cursor: pointer;
+        }
+        .artifact-card.selected { border-color: var(--gold); background: #1a1a1a; }
+
+        .reconstruction-pane { display: flex; gap: 10px; height: 160px; margin-top: 5px; background: #050505; border: 1px solid #222; padding: 5px; }
+        .recon-box { flex: 1; display: flex; flex-direction: column; border: 1px solid #111; }
+        .recon-label { font-size: 7px; color: #666; text-align: center; margin-bottom: 2px; text-transform: uppercase; background: #111; padding: 2px; }
+
+        .sim-count-box { color: var(--neon-b); font-weight: bold; border: 1px solid var(--neon-b); padding: 2px 10px; background: rgba(0, 255, 255, 0.05); }
+
+        .zeta-status { font-size: 8px; color: var(--neon-y); margin-top: 5px; }
+        .void-tag { color: var(--neon-r); font-weight: bold; }
+
+        .bmc-btn { 
+            position: fixed; top: 10px; right: 10px; background: #ffdd00; 
+            color: #000; padding: 5px 10px; font-size: 10px; font-weight: bold; 
+            text-decoration: none; border-radius: 3px; z-index: 10000; opacity: 0.9; 
+        }
+
+        /* ── SPLASH ── */
+        #splash {
+            position: fixed; inset: 0; z-index: 99999;
+            background: #000;
+            display: flex; align-items: center; justify-content: center;
+        }
+        #splash-canvas {
+            position: absolute; inset: 0; width: 100%; height: 100%;
+        }
+        .splash-card {
+            position: relative; z-index: 10;
+            background: rgba(0,0,0,0.88);
+            border: 1px solid rgba(0,255,255,0.2);
+            box-shadow: 0 0 60px rgba(0,255,255,0.06), 0 0 0 1px rgba(0,255,255,0.04);
+            padding: 44px 36px 36px;
+            max-width: 480px; width: 92%;
+            text-align: center;
+        }
+        .splash-eyebrow {
+            font-size: 9px; letter-spacing: 0.3em; color: #333;
+            text-transform: uppercase; margin-bottom: 12px;
+        }
+        .splash-title {
+            font-size: 28px; font-weight: 800; letter-spacing: 0.06em;
+            color: #0ff;
+            text-shadow: 0 0 30px rgba(0,255,255,0.5), 0 0 60px rgba(0,255,255,0.2);
+            margin-bottom: 4px;
+        }
+        .splash-sub {
+            font-size: 10px; color: #222; margin-bottom: 36px;
+            letter-spacing: 0.12em; text-transform: uppercase;
+        }
+        .splash-btn {
+            display: block; width: 100%; text-align: left;
+            background: none; border: 1px solid; border-radius: 2px;
+            padding: 16px 20px; margin-bottom: 10px;
+            cursor: pointer; color: #fff;
+            transition: all 0.15s cubic-bezier(0.34,1.56,0.64,1);
             font-family: monospace;
         }
-        canvas {
-            border: 2px solid #00ffcc;
-            background-color: #222;
-            box-shadow: 0 0 20px rgba(0, 255, 204, 0.1);
-            margin-top: 20px;
+        .splash-btn:hover { transform: scale(1.016); }
+        .splash-btn:last-of-type { margin-bottom: 0; }
+        .btn-eyes   { border-color: rgba(0,255,0,0.3);   background: rgba(0,255,0,0.04); }
+        .btn-eyes:hover   { border-color: rgba(0,255,0,0.7);   background: rgba(0,255,0,0.08);   box-shadow: 0 0 20px rgba(0,255,0,0.1); }
+        .btn-museum { border-color: rgba(255,215,0,0.3); background: rgba(255,215,0,0.04); }
+        .btn-museum:hover { border-color: rgba(255,215,0,0.7); background: rgba(255,215,0,0.08); box-shadow: 0 0 20px rgba(255,215,0,0.1); }
+        .btn-zeta   { border-color: rgba(255,0,255,0.3); background: rgba(255,0,255,0.04); }
+        .btn-zeta:hover   { border-color: rgba(255,0,255,0.7); background: rgba(255,0,255,0.08); box-shadow: 0 0 20px rgba(255,0,255,0.1); }
+        .s-tag {
+            font-size: 8px; letter-spacing: 0.18em; text-transform: uppercase;
+            padding: 2px 6px; border-radius: 2px; margin-bottom: 6px; display: inline-block;
         }
-        #hud {
-            text-align: center;
-            font-size: 1.2rem;
+        .tag-g  { background: rgba(0,255,0,0.1);   color: #0f0; }
+        .tag-au { background: rgba(255,215,0,0.1); color: #ffd700; }
+        .tag-p  { background: rgba(255,0,255,0.1); color: #f0f; }
+        .s-title { font-size: 14px; font-weight: 700; margin-bottom: 3px; letter-spacing: 0.04em; }
+        .s-desc  { font-size: 10px; color: #444; line-height: 1.5; }
+        .s-meta  { margin-top: 7px; font-size: 9px; opacity: 0.5; letter-spacing: 0.06em; }
+        .splash-footer {
+            margin-top: 20px; font-size: 8px; color: #1a1a1a; letter-spacing: 0.12em;
         }
-        .highlight {
-            color: #ff0055;
-            font-weight: bold;
+        @keyframes splashFade { to { opacity: 0; pointer-events: none; } }
+        .splash-fade { animation: splashFade 0.45s ease forwards; }
+
+        /* back button inside sim */
+        #back-btn {
+            position: fixed; bottom: 68px; right: 8px; z-index: 2000;
+            background: rgba(0,0,0,0.8); border: 1px solid #222; color: #333;
+            font-family: monospace; font-size: 9px; padding: 3px 8px; cursor: pointer;
+            letter-spacing: 0.08em;
         }
+        #back-btn:hover { color: #0ff; border-color: #0ff; }
     </style>
 </head>
 <body>
+    <!-- ══ SPLASH ══ -->
+    <div id="splash">
+        <canvas id="splash-canvas"></canvas>
+        <div class="splash-card">
+            <div class="splash-eyebrow">hologram · inversion-ultimate-v44</div>
+            <div class="splash-title">HOLOGRAM</div>
+            <div class="splash-sub">Team 7 · Billiard Topology · Zeta Continuum</div>
 
-    <div id="hud">
-        Winding Number: <span id="windingDisplay" class="highlight">0</span> | 
-        Last Precision Δ: <span id="precisionDisplay" class="highlight">0.000</span>
+            <button class="splash-btn btn-eyes" onclick="splashLaunch('sim')">
+                <span class="s-tag tag-g">Primary</span>
+                <div class="s-title">EYES — Full Simulation</div>
+                <div class="s-desc">Team 7 agents scanning Vy space. Smiths find closed orbits, Blades hunt chaos voids. Ruliad brain, reality quadrants, hyper spacetime.</div>
+                <div class="s-meta" style="color:#0f0;">EYES · BRAIN · REALITY · HYPER · ZETA · LOG</div>
+            </button>
+
+            <button class="splash-btn btn-museum" onclick="splashLaunch('museum')">
+                <span class="s-tag tag-au">Archive</span>
+                <div class="s-title">MUSEUM — Vault Archeology</div>
+                <div class="s-desc">All discovered artifacts: Hyper Singularities, Re-Emergent structures, Periodic Streaks, Diamond Resonances. 2D trajectory & 3D phase reconstruction.</div>
+                <div class="s-meta" style="color:#ffd700;">Supabase backed · Realtime sync · Structural reconstruction</div>
+            </button>
+
+            <button class="splash-btn btn-zeta" onclick="splashLaunch('zeta')">
+                <span class="s-tag tag-p">Research</span>
+                <div class="s-title">ZETA — Irrational Continuum</div>
+                <div class="s-desc">7 zeta agents converging on Riemann zeros via gradient descent. Void detection active. All verified zeros logged permanently to Supabase.</div>
+                <div class="s-meta" style="color:#f0f;">Gradient descent · Zero verification · Synced continuum</div>
+            </button>
+
+            <div class="splash-footer">
+                Smith &amp; Blade bots · Shared Supabase museum · Knowledge is never lost
+            </div>
+        </div>
     </div>
 
-    <canvas id="simCanvas" width="600" height="600"></canvas>
+    <button id="back-btn" onclick="splashReturn()" style="display:none;">⇦ SPLASH</button>
 
-    <script>
-        const canvas = document.getElementById('simCanvas');
-        const ctx = canvas.getContext('2d');
-        const L = canvas.width;
+    <div class="grid-overlay"></div>
+    <a href="http://buymeacoffee.com/brandonkennedy" target="_blank" class="bmc-btn">☕ TIP JAR</a>
 
-        // UI Elements
-        const windingDisplay = document.getElementById('windingDisplay');
-        const precisionDisplay = document.getElementById('precisionDisplay');
+    <div id="v-sim" class="view active">
+        <div class="hud">
+            <span class="sim-count-box">SIM_TOTAL: <span id="sim-run-count">0</span></span>
+            <span class="sim-count-box">ARTIFACTS: <span id="sim-count">0</span></span>
+        </div>
+        <div class="math-overlay" id="math-diag">
+            Vy: 0.00000000<br>WINDING: 0<br>PREC: 0.00000000
+        </div>
+        <canvas id="c-phys"></canvas>
+    </div>
 
-        // Particle State
-        let particle = {
-            x: L / 2,
-            y: L / 2,
-            vx: 7.3, // Non-integer velocities help prevent repeating infinite loops
-            vy: 4.1,
-            radius: 5
+    <div id="v-lab" class="view">
+        <div class="hud"><span>RULIAD_VIBRANT_BRAIN</span><span id="brain-rule" style="color:var(--neon-p)">RULE: 0</span></div>
+        <canvas id="c-brain"></canvas>
+    </div>
+
+    <div id="v-reality" class="view">
+        <div class="hud"><span>QUADRATIC_REALITY_MATRIX</span><span style="color:var(--neon-b)">BEAMS_AND_BLOCKS: ACTIVE</span></div>
+        <canvas id="c-reality"></canvas>
+    </div>
+
+    <div id="v-museum" class="view">
+        <div class="hud"><span>VAULT_ARCHEOLOGY</span><span class="highlight">STRUCTURAL_RECONSTRUCTION</span></div>
+        <div class="museum-layout">
+            <div class="museum-scroll" id="leaderboard-data"></div>
+            <div class="reconstruction-pane">
+                <div class="recon-box"><div class="recon-label">2D_TRAJECTORY</div><canvas id="c-museum-2d"></canvas></div>
+                <div class="recon-box"><div class="recon-label">3D_PHASE_SHIFT</div><canvas id="c-museum-3d"></canvas></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="v-hyper" class="view"><div class="hud"><span>HYPER_SPACETIME_DEPTH</span></div><canvas id="c-hyper"></canvas></div>
+    <div id="v-zeta" class="view">
+        <div class="hud"><span>ZETA_LEADERBOARD</span><span style="color:var(--neon-p)">SYNCED_CONTINUUM</span></div>
+        <canvas id="c-zeta"></canvas>
+        <div id="zeta-leaderboard" style="flex: 1; overflow-y: auto; background: #050505; margin-top: 10px; border: 1px solid #222; font-size: 9px; padding: 10px;"></div>
+    </div>
+    <div id="v-analyze" class="view">
+        <div class="hud"><span>BOT_RATIO_GRADING</span><button onclick="window.downloadData()" style="background:var(--gold); border:none; padding:2px 5px; font-size:8px; cursor:pointer; font-weight:bold;">DOWNLOAD_STATE</button></div>
+        <div id="log"></div>
+    </div>
+
+    <nav class="nav">
+        <button onclick="tab('sim')" id="b-sim" class="active">EYES</button>
+        <button onclick="tab('lab')" id="b-lab">BRAIN</button>
+        <button onclick="tab('reality')" id="b-reality">REALITY</button>
+        <button onclick="tab('museum')" id="b-museum">MUSEUM</button>
+        <button onclick="tab('hyper')">HYPER</button>
+        <button onclick="tab('zeta')">ZETA</button>
+        <button onclick="tab('analyze')">LOG</button>
+    </nav>
+
+    <script type="module">
+        const supabaseUrl = 'https://jeddcrgchxvdihmxuxpr.supabase.co';
+        const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImplZGRjcmdjaHh2ZGlobXh1eHByIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0MDQ4NjAsImV4cCI6MjA4Njk4MDg2MH0.WnCrWYXYsJPlxMj-RisMHBCveKUgI7HlBh0Peh1T6Vw';
+
+        const supabase = Supabase.createClient(supabaseUrl, supabaseAnonKey);
+
+        // ── GENESIS BRAIN BRIDGE: main Beyond Bound Supabase ──────────────
+        // This is a SEPARATE project from the winding room's own Supabase.
+        // We write to genesis_brain on the main project so the AI Band,
+        // smell_sim, and deep_learning can all react to winding room data.
+        const GB_URL = 'https://xoolmbmnzbsvcqeyqvyi.supabase.co';
+        const GB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhvb2xtYm1uemJzdmNleXhxdnlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0NDMwNDQsImV4cCI6MjA4NzAxOTA0NH0.ebTwMZ_byU6EXtuR0jynct64QO5ornQrCwElQ5b9TxQ';
+        const GB_HDRS = {
+            'apikey': GB_KEY, 'Authorization': 'Bearer ' + GB_KEY,
+            'Content-Type': 'application/json',
+            'Prefer': 'resolution=merge-duplicates,return=minimal'
+        };
+        let _gbV = 0, _gbLast = 0;
+        function gbWriteWinding(payload) {
+            const now = Date.now();
+            if (now - _gbLast < 1200) return; // max ~0.8 writes/sec
+            _gbLast = now;
+            fetch(GB_URL + '/rest/v1/genesis_brain', {
+                method: 'POST', headers: GB_HDRS,
+                body: JSON.stringify({
+                    namespace: 'winding',
+                    version: ++_gbV,
+                    payload: { ...payload, _ts: now }
+                })
+            }).catch(() => {});
+        }
+
+        // Also LISTEN for band + sim3 data so winding room can react
+        let _bandState = null, _sim3State = null;
+        (function connectGB() {
+            const wsUrl = GB_URL.replace('https://', 'wss://') +
+                '/realtime/v1/websocket?apikey=' + GB_KEY + '&vsn=1.0.0';
+            const ws = new WebSocket(wsUrl);
+            ws.onopen = () => {
+                ws.send(JSON.stringify({
+                    topic: 'realtime:public:genesis_brain', event: 'phx_join',
+                    payload: { config: { broadcast: { self: false }, presence: { key: '' },
+                        postgres_changes: [{ event: '*', schema: 'public', table: 'genesis_brain' }] } },
+                    ref: 'winding-1'
+                }));
+                setInterval(() => {
+                    if (ws.readyState === 1)
+                        ws.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: null }));
+                }, 25000);
+            };
+            ws.onmessage = (e) => {
+                try {
+                    const msg = JSON.parse(e.data);
+                    const rec = msg?.payload?.data?.record || msg?.payload?.data?.new || msg?.payload?.record;
+                    if (!rec?.namespace) return;
+                    if (rec.namespace === 'band') {
+                        _bandState = rec.payload;
+                        // Band BPM modulates bot speed — faster BPM = faster bots
+                        if (_bandState?.bpm > 0) {
+                            const speedMult = 0.7 + (_bandState.bpm / 120) * 0.6;
+                            team7.forEach(b => {
+                                b.vx = Math.sign(b.vx) * Math.min(8, Math.abs(b.vx) * speedMult);
+                                b.vy = Math.sign(b.vy) * Math.min(8, Math.abs(b.vy) * speedMult);
+                            });
+                        }
+                        // Band chaos modulates grid glow intensity
+                        if (_bandState?.chaos != null) {
+                            const gAlpha = 0.06 + _bandState.chaos * 0.16;
+                            document.documentElement.style.setProperty('--grid-alpha', gAlpha);
+                        }
+                        updateLog('BAND: ' + (_bandState.bpm|0) + 'BPM · ' + (_bandState.chord_type||'').toUpperCase());
+                    }
+                    if (rec.namespace === 'sim3') {
+                        _sim3State = rec.payload;
+                        // sim3 inversions jolt all bots outward from centre
+                        if (_sim3State?.inversions > 0) {
+                            team7.forEach(b => {
+                                const dx = b.x - 250, dy = b.y - 250;
+                                const d = Math.sqrt(dx*dx + dy*dy) || 1;
+                                b.vx += (dx/d) * 2 * Math.min(1, (_sim3State.chaos_ratio||0)/8);
+                                b.vy += (dy/d) * 2 * Math.min(1, (_sim3State.chaos_ratio||0)/8);
+                            });
+                        }
+                    }
+                } catch(_) {}
+            };
+            ws.onerror = () => setTimeout(connectGB, 5000); // auto-reconnect
+        })();
+
+        // --- CORE INITIALIZATION ---
+        const COLORS = { G: '#0f0', P: '#f0f', B: '#0ff', Y: '#ff0', W: '#fff', R: '#f03', GOLD: '#ffd700' };
+
+        const appId = 'inversion-ultimate-v44';
+
+        let user = null, globalMuseum = [], globalZeta = [], canvasSize = 500, selectedArtifact = null, authReady = false;
+        let totalSimRuns = 0;
+        const gridRes = 30, ruliadRes = 100;
+        const heatmap = Array.from({ length: gridRes }, () => Array(gridRes).fill(0));
+        let ruliadGrid = Array.from({ length: ruliadRes }, () => Array(ruliadRes).fill(0));
+
+        // --- TEAM 7 AGENTS ---
+        const team7 = [
+            { id: 0, name: "S_Alpha", type: "smith", color: '#00ff44', x: 250, y: 250, vx: 5, vy: 5.1234, trail: [], bounces: 0, range: [0.0001, 0.5], struct: 0, chaos: 0, lastPrec: 0 },
+            { id: 1, name: "S_Beta", type: "smith", color: '#00ccff', x: 250, y: 250, vx: 5, vy: 0.1234, trail: [], bounces: 0, range: [0.0001, 0.5], struct: 0, chaos: 0, lastPrec: 0 },
+            { id: 2, name: "S_Gamma", type: "smith", color: '#ffcc00', x: 250, y: 250, vx: 5, vy: 14.5678, trail: [], bounces: 0, range: [0.5, 10], struct: 0, chaos: 0, lastPrec: 0 },
+            { id: 3, name: "S_Delta", type: "smith", color: '#ff4400', x: 250, y: 250, vx: 5, vy: 21.0982, trail: [], bounces: 0, range: [10, 25], struct: 0, chaos: 0, lastPrec: 0 },
+            { id: 4, name: "B_X", type: "blade", color: '#ff00ff', x: 250, y: 250, vx: 5, vy: 7.1239, trail: [], bounces: 0, range: [0.001, 35], struct: 0, chaos: 0, lastPrec: 0 },
+            { id: 5, name: "B_Y", type: "blade", color: '#00ffff', x: 250, y: 250, vx: 5, vy: 12.4456, trail: [], bounces: 0, range: [0.001, 35], struct: 0, chaos: 0, lastPrec: 0 },
+            { id: 6, name: "B_Z", type: "blade", color: '#ffffff', x: 250, y: 250, vx: 5, vy: 19.8873, trail: [], bounces: 0, range: [0.001, 35], struct: 0, chaos: 0, lastPrec: 0 }
+        ];
+
+        const zetaAgents = team7.map((b, i) => ({ 
+            ...b, 
+            t: (i < 4 ? 14.13 + (i * 3.5) : 30 + (i * 15)), 
+            mag: 1, locked: false, confirmations: 0, isVoid: false 
+        }));
+
+        // --- AUTH & DATA SYNC ---
+        async function bootAuth() {
+            const { data: { session }, error } = await supabase.auth.signInAnonymously();
+            if (error) {
+                console.error("Anon auth failed:", error);
+                updateLog("AUTH FAILED – CHECK RLS OR KEY");
+                return;
+            }
+            user = session?.user ?? null;
+            authReady = true;
+            if (user) {
+                console.log("Anon user ID:", user.id);
+                subscribeToMuseum();
+                subscribeToZeta();
+            }
+        }
+
+        function subscribeToMuseum() {
+            supabase
+                .from('museum')
+                .select('*')
+                .then(({ data, error }) => {
+                    if (!error && data) {
+                        globalMuseum = data;
+                        document.getElementById('sim-count').innerText = globalMuseum.length;
+                        if (document.getElementById('v-museum').classList.contains('active')) updateMuseumUI();
+                    }
+                });
+
+            supabase
+                .channel('museum-changes')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'museum' }, () => {
+                    supabase.from('museum').select('*').then(({ data }) => {
+                        globalMuseum = data || [];
+                        document.getElementById('sim-count').innerText = globalMuseum.length;
+                        if (document.getElementById('v-museum').classList.contains('active')) updateMuseumUI();
+                    });
+                })
+                .subscribe();
+        }
+
+        function subscribeToZeta() {
+            supabase
+                .from('zeta_zeros')
+                .select('*')
+                .then(({ data, error }) => {
+                    if (!error && data) {
+                        globalZeta = data.sort((a,b) => a.t - b.t);
+                        updateZetaLeaderboard();
+                    }
+                });
+
+            supabase
+                .channel('zeta-changes')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'zeta_zeros' }, () => {
+                    supabase.from('zeta_zeros').select('*').then(({ data }) => {
+                        globalZeta = data?.sort((a,b) => a.t - b.t) || [];
+                        updateZetaLeaderboard();
+                    });
+                })
+                .subscribe();
+        }
+
+        bootAuth();
+
+        function updateLog(m) { 
+            const l = document.getElementById('log'); 
+            if(l) { l.innerHTML += `> ${m}\n`; l.scrollTop = l.scrollHeight; } 
+        }
+
+        // --- NOVELTY CHECK ---
+        function getNovelVy(bot) {
+            let candidate; let attempts = 0; const epsilon = 0.000001; 
+            while(attempts < 100) {
+                candidate = bot.range[0] + Math.random() * (bot.range[1] - bot.range[0]);
+                const isRedundant = globalMuseum.some(m => Math.abs(parseFloat(m.vy) - candidate) < epsilon);
+                if (!isRedundant) { 
+                    totalSimRuns++; 
+                    document.getElementById('sim-run-count').innerText = totalSimRuns; 
+                    return candidate; 
+                }
+                attempts++;
+            }
+            return candidate;
+        }
+
+        async function logArtifact(node, heat) {
+            if (!user) return;
+            const isStructure = node.precision < 0.04 || heat > 0.85;
+            const bot = team7.find(b => b.name === node.botName);
+            if(bot) isStructure ? bot.struct++ : bot.chaos++;
+            let category = isStructure ? (node.winding % 2 === 0 ? "PERIODIC_STREAK" : "DIAMOND_RESONANCE") : "CHAOTIC_MESH";
+            if (node.bounces > 600 && node.precision < 0.01) category = "RE_EMERGENT";
+            if (node.precision < 0.005) category = "HYPER_SINGULARITY";
+
+            const { error } = await supabase
+                .from('museum')
+                .insert({
+                    ...node,
+                    category,
+                    classification: isStructure ? "STRUCTURE" : "RANDOMNESS",
+                    heat,
+                    timestamp: Date.now(),
+                    user_id: user.id
+                });
+
+            if (error) {
+                console.error("Museum insert error:", error);
+                updateLog("ARTIFACT SAVE FAILED");
+            }
+        }
+
+        async function logZeta(tValue) {
+            if (!user) return;
+            const { error } = await supabase
+                .from('zeta_zeros')
+                .insert({ 
+                    t: tValue, 
+                    timestamp: Date.now(), 
+                    user_id: user.id 
+                });
+
+            if (!error) {
+                updateLog(`VERIFIED_ZERO_PERMANENT: t=${tValue.toFixed(8)}`);
+            } else {
+                console.error("Zeta insert error:", error);
+            }
+        }
+
+        // --- UI ---
+        function resizeUI() {
+            canvasSize = Math.min(window.innerHeight - 200, window.innerWidth - 40, 500);
+            ['c-phys','c-reality','c-hyper','c-zeta','c-brain'].forEach(id => {
+                const c = document.getElementById(id); 
+                if(c) { 
+                    c.width = canvasSize; 
+                    c.height = (id === 'c-zeta') ? 150 : canvasSize; 
+                }
+            });
+            const c2d = document.getElementById('c-museum-2d'), c3d = document.getElementById('c-museum-3d');
+            if(c2d) { c2d.width = 180; c2d.height = 130; } 
+            if(c3d) { c3d.width = 180; c3d.height = 130; }
+        }
+        window.addEventListener('resize', resizeUI);
+
+        window.tab = (t) => {
+            document.querySelectorAll('.view, .nav button').forEach(el => el.classList.remove('active'));
+            const target = document.getElementById('v-' + t), btn = document.getElementById('b-' + t);
+            if(target) target.classList.add('active'); 
+            if(btn) btn.classList.add('active');
+            if(t === 'museum') updateMuseumUI();
+            if(t === 'analyze') updateBotReport();
+            if(t === 'zeta') updateZetaLeaderboard();
         };
 
-        class WindingSquare {
-            constructor(size) {
-                this.L = size;
-                this.windingNumber = 0;
+        const updateBotReport = () => {
+            let log = document.getElementById('log'); 
+            log.innerHTML = "";
+            team7.forEach(b => {
+                const ratio = (b.struct / (b.chaos || 1)).toFixed(2);
+                log.innerHTML += `<div style="margin-bottom:10px; color:\( {b.color}">[ \){b.name}] RATIO: ${ratio} | S: ${b.struct} | C: ${b.chaos}</div>`;
+            });
+        };
+
+        const updateMuseumUI = () => {
+            const container = document.getElementById('leaderboard-data'); 
+            if(!container) return;
+            const groups = { 
+                HYPER_SINGULARITY: [], RE_EMERGENT: [], PERIODIC_STREAK: [], 
+                DIAMOND_RESONANCE: [], CHAOTIC_MESH: [] 
+            };
+            [...globalMuseum].forEach(m => {
+                const cat = m.category || "CHAOTIC_MESH";
+                if (groups[cat]) groups[cat].push(m);
+            });
+            container.innerHTML = Object.entries(groups).map(([cat, list]) => 
+                list.length > 0 ? `
+                    <div class="category-header">\( {cat} ( \){list.length})</div>
+                    ${list.slice(0, 5).map(m => `
+                        <div class="artifact-card ${selectedArtifact?.timestamp === m.timestamp ? 'selected' : ''}" 
+                             onclick="window.selectArtifact('${m.timestamp}')">
+                            <div><b style="color:var(--neon-b)">Vy:\( {m.vy?.toFixed(6)}</b><br><small>Δ: \){m.precision?.toFixed(5)}</small></div>
+                            <div style="color:var(--gold)">${m.botName}</div>
+                        </div>
+                    `).join('')}
+                ` : ''
+            ).join('');
+        };
+        window.selectArtifact = (ts) => { 
+            selectedArtifact = globalMuseum.find(m => m.timestamp.toString() === ts); 
+            updateMuseumUI(); 
+        };
+
+        const updateZetaLeaderboard = () => {
+            const lb = document.getElementById('zeta-leaderboard'); 
+            if(!lb) return;
+            lb.innerHTML = `<div style="color:var(--gold); margin-bottom:5px; border-bottom:1px solid #444;">IRRATIONAL CONTINUUM (Zeros Found: ${globalZeta.length})</div>`;
+            globalZeta.slice(0, 20).forEach((z, i) => {
+                lb.innerHTML += `<div>[Rank ${i+1}] t = ${z.t.toFixed(8)} <span style="color:#555;">(Verified)</span></div>`;
+            });
+        };
+
+        window.downloadData = () => {
+            const data = { 
+                museum: globalMuseum, 
+                zeta: globalZeta, 
+                bots: team7.map(b=>({name:b.name, ratio: b.struct/(b.chaos||1)})) 
+            };
+            const a = document.createElement('a'); 
+            a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+            a.download = `inversion_v44_final_state.json`; 
+            a.click();
+        };
+
+        // --- MAIN RENDER V44 ---
+        function runV44() {
+            const ctxPhys = document.getElementById('c-phys')?.getContext('2d');
+            if(ctxPhys) {
+                ctxPhys.fillStyle = 'rgba(0,0,0,0.2)'; 
+                ctxPhys.fillRect(0,0,canvasSize,canvasSize);
+                const cellS = canvasSize / gridRes;
+                for(let i=0; i<gridRes; i++) for(let j=0; j<gridRes; j++) {
+                    if(heatmap[i][j] > 0) {
+                        ctxPhys.fillStyle = `rgba(0, 255, 255, ${heatmap[i][j] * 0.15})`;
+                        ctxPhys.fillRect(i*cellS, j*cellS, cellS, cellS); 
+                        heatmap[i][j] *= 0.98;
+                    }
+                }
             }
 
-            updateState(p) {
-                let hitX = false;
-                let hitY = false;
-
-                // Move particle
-                p.x += p.vx;
-                p.y += p.vy;
-
-                // X-axis boundaries
-                if (p.x - p.radius <= 0 || p.x + p.radius >= this.L) {
-                    hitX = true;
-                    p.vx *= -1; 
-                    // Snap to boundary to prevent sticking
-                    p.x = p.x - p.radius <= 0 ? p.radius : this.L - p.radius; 
+            team7.forEach(bot => {
+                for(let s=0; s<15; s++) {
+                    bot.x += bot.vx; bot.y += bot.vy;
+                    const gx = Math.floor(bot.x / (500/gridRes)), gy = Math.floor(bot.y / (500/gridRes));
+                    if(gx>=0 && gx<gridRes && gy>=0 && gy<gridRes) heatmap[gx][gy] = Math.min(1.0, heatmap[gx][gy] + 0.08);
+                    let hitX = (bot.x<=0 || bot.x>=500), hitY = (bot.y<=0 || bot.y>=500);
+                    if(hitX) { bot.vx*=-1; bot.x = bot.x<=0?0:500; bot.bounces++; }
+                    if(hitY) { bot.vy*=-1; bot.y = bot.y<=0?0:500; bot.bounces++; }
+                    if(hitX && hitY) {
+                        const tx = bot.x < 250 ? 0 : 500, ty = bot.y < 250 ? 0 : 500;
+                        const prec = Math.sqrt(Math.pow(bot.x-tx,2) + Math.pow(bot.y-ty,2));
+                        bot.lastPrec = prec;
+                        if(prec < 0.1) logArtifact({ vy: bot.vy, botName: bot.name, winding: Math.floor(bot.bounces/2), precision: prec, bounces: bot.bounces }, heatmap[gx][gy] || 0);
+                    }
+                    if(s % 5 === 0) { bot.trail.push({x: bot.x, y: bot.y}); if(bot.trail.length > 50) bot.trail.shift(); }
+                    if(bot.bounces >= 800) { bot.vy = getNovelVy(bot); bot.x = 250; bot.y = 250; bot.bounces = 0; }
                 }
-
-                // Y-axis boundaries
-                if (p.y - p.radius <= 0 || p.y + p.radius >= this.L) {
-                    hitY = true;
-                    p.vy *= -1;
-                    p.y = p.y - p.radius <= 0 ? p.radius : this.L - p.radius;
+                if(ctxPhys && document.getElementById('v-sim').classList.contains('active')) {
+                    ctxPhys.beginPath(); ctxPhys.strokeStyle = bot.color; ctxPhys.lineWidth = 1.8;
+                    bot.trail.forEach((p, idx) => { 
+                        ctxPhys.globalAlpha = (idx / bot.trail.length) * 0.9; 
+                        ctxPhys.lineTo(p.x * (canvasSize/500), p.y * (canvasSize/500)); 
+                    });
+                    ctxPhys.stroke(); 
+                    ctxPhys.globalAlpha = 1.0; 
+                    ctxPhys.fillStyle = bot.color;
+                    ctxPhys.beginPath(); 
+                    ctxPhys.arc(bot.x*(canvasSize/500), bot.y*(canvasSize/500), 4, 0, Math.PI*2); 
+                    ctxPhys.fill();
                 }
+            });
 
-                // The "Double Bounce" (Corner Hit)
-                if (hitX && hitY) {
-                    this.registerDoubleBounce(p);
-                }
-            }
+            document.getElementById('math-diag').innerHTML = `Vy: ${team7[0].vy.toFixed(8)}<br>WINDING: ${Math.floor(team7[0].bounces/2)}<br>PRECISION: ${team7[0].lastPrec.toFixed(8)}`;
 
-            registerDoubleBounce(p) {
-                this.windingNumber++;
-                
-                // Determine geometric absolute vertex
-                const targetX = (p.x < this.L / 2) ? 0 : this.L;
-                const targetY = (p.y < this.L / 2) ? 0 : this.L;
+            if(document.getElementById('v-lab').classList.contains('active')) renderBrain();
+            if(document.getElementById('v-reality').classList.contains('active')) renderRealityQuadrants();
+            if(document.getElementById('v-hyper').classList.contains('active')) renderHyperSpacetime();
+            if(document.getElementById('v-zeta').classList.contains('active')) runZetaLogic();
+            if(document.getElementById('v-museum').classList.contains('active')) renderMuseumArcheology();
+            requestAnimationFrame(runV44);
 
-                const errorX = Math.abs(p.x - targetX);
-                const errorY = Math.abs(p.y - targetY);
-                const precisionDelta = Math.sqrt(errorX * errorX + errorY * errorY);
-
-                // Update UI
-                windingDisplay.innerText = this.windingNumber;
-                precisionDisplay.innerText = precisionDelta.toFixed(3);
+            // Publish to Genesis Brain every ~120 frames (~2s at 60fps)
+            if (typeof _gbV !== 'undefined') {
+                const totalWinding = team7.reduce((s,b) => s + Math.floor(b.bounces/2), 0);
+                const totalBounces = team7.reduce((s,b) => s + b.bounces, 0);
+                const avgPrec = team7.reduce((s,b) => s + b.lastPrec, 0) / team7.length;
+                const structRatio = team7.reduce((s,b) => s + b.struct, 0) /
+                    Math.max(1, team7.reduce((s,b) => s + b.struct + b.chaos, 0));
+                gbWriteWinding({
+                    total_winding:  totalWinding,
+                    total_bounces:  totalBounces,
+                    avg_precision:  parseFloat(avgPrec.toFixed(6)),
+                    struct_ratio:   parseFloat(structRatio.toFixed(3)),
+                    bot_count:      team7.length,
+                    museum_size:    globalMuseum.length,
+                    zeta_found:     globalZeta.length,
+                    active_bots:    team7.map(b => ({
+                        name: b.name, winding: Math.floor(b.bounces/2),
+                        precision: parseFloat(b.lastPrec.toFixed(5)),
+                        x: parseFloat((b.x/500).toFixed(3)),
+                        y: parseFloat((b.y/500).toFixed(3))
+                    })),
+                    band_reactive:  _bandState != null,
+                    sim3_reactive:  _sim3State != null,
+                });
             }
         }
 
-        const engine = new WindingSquare(L);
+        function renderRealityQuadrants() {
+            const ctx = document.getElementById('c-reality')?.getContext('2d'); if(!ctx) return;
+            const h = canvasSize / 2; ctx.fillStyle = '#000'; ctx.fillRect(0,0,canvasSize,canvasSize);
+            ctx.strokeStyle = 'rgba(0, 255, 255, 0.4)'; ctx.beginPath(); ctx.moveTo(h,0); ctx.lineTo(h,canvasSize); ctx.moveTo(0,h); ctx.lineTo(canvasSize,h); ctx.stroke();
+            team7.forEach(b => {
+                ctx.save(); ctx.beginPath(); ctx.strokeStyle = b.color;
+                b.trail.forEach((p, i) => { ctx.globalAlpha = (i/b.trail.length)*0.3; ctx.lineTo((p.x/500)*h, (p.y/500)*h); }); ctx.stroke();
+                ctx.globalAlpha = 1.0; ctx.fillStyle = b.color; ctx.fillRect(b.x*(h/500)-1, b.y*(h/500)-1, 3, 3); ctx.restore();
 
-        // Render Loop
-        function draw() {
-            // Fade effect for trails
-            ctx.fillStyle = 'rgba(34, 34, 34, 0.3)';
-            ctx.fillRect(0, 0, L, L);
+                ctx.save(); ctx.translate(h, 0); ctx.strokeStyle = COLORS.GOLD; ctx.globalAlpha = 0.5;
+                ctx.beginPath(); ctx.moveTo(h/2, h); ctx.lineTo((b.x/500)*h, (b.y/500)*(h/2)); ctx.stroke();
+                ctx.strokeStyle = '#fff'; ctx.globalAlpha = 0.2; ctx.beginPath(); ctx.moveTo(0, (b.bounces/800)*(h/2)); ctx.lineTo(h, (b.bounces/800)*(h/2)); ctx.stroke();
+                ctx.strokeStyle = b.color;
+                b.trail.forEach((p, i) => { ctx.globalAlpha = (i/b.trail.length)*0.4; ctx.lineTo((p.x/500)*h, (p.y/500)*(h/2)); }); ctx.stroke();
+                ctx.restore();
 
-            engine.updateState(particle);
+                ctx.save(); ctx.translate(0, h);
+                ctx.beginPath(); ctx.strokeStyle = b.color;
+                b.trail.forEach((p, i) => {
+                    ctx.globalAlpha = (i/b.trail.length)*0.2;
+                    let nx=(p.x-250)/250, ny=(p.y-250)/250, r2=nx*nx+ny*ny, mag=Math.min(0.98, Math.sqrt(r2)), fac=Math.atanh(mag)/mag;
+                    ctx.lineTo(nx*fac*25+h/2, ny*fac*25+h/2);
+                }); ctx.stroke();
+                let nx=(b.x-250)/250, ny=(b.y-250)/250, mag=Math.min(0.98, Math.sqrt(nx*nx+ny*ny)), fac=Math.atanh(mag)/mag;
+                ctx.fillStyle=b.color; ctx.beginPath(); ctx.arc(nx*fac*25+h/2, ny*fac*25+h/2, 2.5, 0, Math.PI*2); ctx.fill(); ctx.restore();
 
-            // Draw particle
-            ctx.beginPath();
-            ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
-            ctx.fillStyle = '#00ffcc';
-            ctx.fill();
-            ctx.closePath();
-
-            requestAnimationFrame(draw);
+                ctx.save(); ctx.translate(h, h); 
+                const rule = Math.floor(b.vy * 100) % 256;
+                const bSize = h / 12;
+                for(let i=0; i<10; i++) for(let j=0; j<10; j++) {
+                    if((rule >> (i+j)%8)&1) { 
+                        ctx.fillStyle = `hsla(${(rule+i*15)%360}, 75%, 50%, 0.65)`;
+                        ctx.fillRect(i*bSize, j*bSize, bSize-1, bSize-1); 
+                    }
+                }
+                ctx.restore();
+            });
         }
 
-        draw();
+        function runZetaLogic() {
+            const ctx = document.getElementById('c-zeta')?.getContext('2d'); if(!ctx) return;
+            ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.fillRect(0,0,canvasSize, 150);
+            zetaAgents.forEach(z => {
+                const m1 = Math.abs(Math.sin(z.t) + Math.sin(z.t * Math.E) + Math.cos(z.t * Math.PI) * 0.4);
+                const m2 = Math.abs(Math.sin(z.t + 0.0001) + Math.sin((z.t + 0.0001) * Math.E));
+                const grad = (m2 - m1) / 0.0001;
+
+                const isNear = globalZeta.some(gz => Math.abs(gz.t - z.t) < 0.05);
+                if (isNear) { z.t += 0.5; return; }
+
+                z.isVoid = Math.abs(grad) < 0.0001 && m1 > 1.0;
+                if(z.isVoid) { z.t += Math.random() * 10; return; }
+
+                z.t -= grad * (z.locked ? 0.0002 : 0.035) * (m1 < 0.5 ? 1.5 : 0.4);
+                if (m1 < 0.005 && Math.abs(grad) < 0.001) { 
+                    z.confirmations++; 
+                    if(z.confirmations > 100) { logZeta(z.t); z.t = Math.random() * 500; z.locked = false; z.confirmations = 0; } 
+                } else { z.locked = false; }
+
+                ctx.fillStyle = z.color; const x = (z.id * (canvasSize/7)) + (canvasSize/14), y = 140 - (m1 * 100);
+                ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#fff'; ctx.font = '6px monospace';
+                ctx.fillText(`t:${z.t.toFixed(2)}`, x-15, 148);
+                if(z.isVoid) { ctx.fillStyle = COLORS.R; ctx.fillText("VOID", x-10, y-10); }
+            });
+        }
+
+        function renderMuseumArcheology() {
+            if(!selectedArtifact) return;
+            const c2d = document.getElementById('c-museum-2d')?.getContext('2d'), c3d = document.getElementById('c-museum-3d')?.getContext('2d');
+            if(!c2d || !c3d) return;
+            const vy = parseFloat(selectedArtifact.vy), t = Date.now() * 0.001;
+            c2d.fillStyle = '#050505'; c2d.fillRect(0,0,180,130);
+            c2d.strokeStyle = selectedArtifact.category === 'RE_EMERGENT' ? `hsl(${Math.random()*360}, 100%, 50%)` : COLORS.B;
+            c2d.lineWidth = 1; c2d.beginPath();
+            let tx=90, ty=65, tvx=3, tvy=vy/3;
+            for(let i=0; i<80; i++){ tx+=tvx; ty+=tvy; if(tx<=0||tx>=180)tvx*=-1; if(ty<=0||ty>=130)tvy*=-1; c2d.lineTo(tx,ty); }
+            c2d.stroke();
+            c3d.fillStyle = '#000'; c3d.fillRect(0,0,180,130); c3d.strokeStyle = COLORS.GOLD;
+            for(let i=0; i<40; i++) {
+                const ang = (i/40) * Math.PI * 2 + t;
+                const rad = 30 + Math.sin(i*vy*0.1 + t*4)*10;
+                const r2 = (Math.cos(ang)*rad)**2 + (Math.sin(ang)*rad)**2 + 0.1;
+                c3d.beginPath(); c3d.moveTo(90+Math.cos(ang)*rad, 65+Math.sin(ang)*rad);
+                c3d.lineTo(90+(Math.cos(ang)*rad)/r2*800, 65+(Math.sin(ang)*rad)/r2*800); c3d.globalAlpha=0.2; c3d.stroke();
+            }
+            c3d.globalAlpha = 1.0;
+        }
+
+        function renderBrain() {
+            const ctx = document.getElementById('c-brain')?.getContext('2d'); if(!ctx) return;
+            const cS = canvasSize / ruliadRes, rule = Math.floor(team7[0].vy * 100) % 256;
+            const nextRow = new Array(ruliadRes).fill(0);
+            for(let i=0; i<ruliadRes; i++) {
+                const pat = (ruliadGrid[0][(i-1+ruliadRes)%ruliadRes]<<2)|(ruliadGrid[0][i]<<1)|ruliadGrid[0][(i+1)%ruliadRes];
+                if((rule >> pat) & 1) nextRow[i] = 1;
+            }
+            ruliadGrid.unshift(nextRow); ruliadGrid.pop();
+            ctx.fillStyle = '#000'; ctx.fillRect(0,0,canvasSize,canvasSize);
+            ruliadGrid.forEach((row, y) => row.forEach((c, x) => { if(c) { ctx.fillStyle = `hsl(${(x/ruliadRes)*360 + (y/ruliadRes)*80}, 100%, 55%)`; ctx.fillRect(x*cS, y*cS, cS, cS); } }));
+            team7.forEach(b => { ctx.fillStyle = b.color; ctx.beginPath(); ctx.arc(b.x*(canvasSize/500), b.y*(canvasSize/500), 5.5, 0, Math.PI*2); ctx.fill(); });
+        }
+
+        function renderHyperSpacetime() {
+            const ctx = document.getElementById('c-hyper')?.getContext('2d'); if(!ctx) return;
+            ctx.fillStyle = 'rgba(0,0,0,0.1)'; ctx.fillRect(0,0,canvasSize,canvasSize);
+            const time = Date.now() * 0.0006, R = 150, r = 60;
+            team7.forEach(b => {
+                const u=((b.vy%1)*2*Math.PI)+time, v=(b.x/500)*2*Math.PI, scale=400/(400+(r*Math.sin(v))+200);
+                const sx=canvasSize/2+((R+r*Math.cos(v))*Math.cos(u))*scale, sy=canvasSize/2+((R+r*Math.cos(v))*Math.sin(u))*scale;
+                ctx.fillStyle=b.color; ctx.beginPath(); ctx.arc(sx,sy,4*scale,0,Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.strokeStyle=b.color; b.trail.forEach((p,i)=>{
+                    const s2=400/(400+(r*Math.sin((p.x/500)*2*Math.PI))+200);
+                    ctx.globalAlpha=(i/b.trail.length)*0.3; ctx.lineTo(canvasSize/2+((R+r*Math.cos((p.x/500)*2*Math.PI))*Math.cos(u))*s2, canvasSize/2+((R+r*Math.cos((p.x/500)*2*Math.PI))*Math.sin(u))*s2);
+                }); ctx.stroke();
+            });
+        }
+
+        window.onload = () => { 
+            resizeUI(); 
+            ruliadGrid[0][ruliadRes/2]=1; 
+            runV44(); 
+        };
+        window.tab = tab; 
+        window.selectArtifact = selectArtifact;
+    </script>
+    <!-- ══ SPLASH LOGIC ══ -->
+    <script>
+    (function(){
+        const canvas = document.getElementById('splash-canvas');
+        const ctx = canvas.getContext('2d');
+        let W, H, pts = [];
+
+        function resize() {
+            W = canvas.width  = window.innerWidth;
+            H = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Billiard-style particles in a glowing square
+        for(let i = 0; i < 14; i++) {
+            const isGold = Math.random() < 0.25;
+            pts.push({
+                x: W/2 + (Math.random()-0.5)*300,
+                y: H/2 + (Math.random()-0.5)*300,
+                vx: (Math.random()-0.5) * 2.2,
+                vy: (Math.random()-0.5) * 2.2,
+                trail: [],
+                color: isGold ? '#ffd700' : (Math.random()<0.5 ? '#0ff' : '#0f0'),
+                alpha: 0.1 + Math.random()*0.18
+            });
+        }
+
+        function bounds() {
+            const s = Math.min(W, H) * 0.48;
+            return { x0: W/2-s/2, y0: H/2-s/2, x1: W/2+s/2, y1: H/2+s/2 };
+        }
+
+        function tick() {
+            ctx.fillStyle = 'rgba(0,0,0,0.15)';
+            ctx.fillRect(0, 0, W, H);
+            const b = bounds();
+
+            // Faint grid
+            ctx.strokeStyle = 'rgba(0,255,255,0.04)';
+            ctx.lineWidth = 1;
+            for(let x = b.x0; x <= b.x1; x += 25) { ctx.beginPath(); ctx.moveTo(x,b.y0); ctx.lineTo(x,b.y1); ctx.stroke(); }
+            for(let y = b.y0; y <= b.y1; y += 25) { ctx.beginPath(); ctx.moveTo(b.x0,y); ctx.lineTo(b.x1,y); ctx.stroke(); }
+
+            // Bounding box
+            ctx.strokeStyle = 'rgba(0,255,255,0.08)';
+            ctx.strokeRect(b.x0, b.y0, b.x1-b.x0, b.y1-b.y0);
+
+            pts.forEach(p => {
+                p.trail.push({x:p.x, y:p.y});
+                if(p.trail.length > 35) p.trail.shift();
+
+                p.x += p.vx; p.y += p.vy;
+                if(p.x <= b.x0) { p.vx = Math.abs(p.vx); p.x = b.x0; }
+                if(p.x >= b.x1) { p.vx = -Math.abs(p.vx); p.x = b.x1; }
+                if(p.y <= b.y0) { p.vy = Math.abs(p.vy); p.y = b.y0; }
+                if(p.y >= b.y1) { p.vy = -Math.abs(p.vy); p.y = b.y1; }
+
+                if(p.trail.length > 1) {
+                    ctx.beginPath();
+                    ctx.moveTo(p.trail[0].x, p.trail[0].y);
+                    for(let i=1; i<p.trail.length; i++) ctx.lineTo(p.trail[i].x, p.trail[i].y);
+                    ctx.strokeStyle = p.color;
+                    ctx.globalAlpha = p.alpha * 0.35;
+                    ctx.lineWidth = 0.8;
+                    ctx.stroke();
+                }
+                ctx.globalAlpha = p.alpha;
+                ctx.fillStyle = p.color;
+                ctx.beginPath(); ctx.arc(p.x, p.y, 1.5, 0, Math.PI*2); ctx.fill();
+            });
+            ctx.globalAlpha = 1;
+            requestAnimationFrame(tick);
+        }
+        tick();
+
+        window.splashLaunch = function(startTab) {
+            const splash = document.getElementById('splash');
+            splash.classList.add('splash-fade');
+            setTimeout(() => { splash.style.display = 'none'; }, 450);
+            document.getElementById('back-btn').style.display = 'block';
+            // Switch tab after engine has started
+            setTimeout(() => { if(window.tab && startTab !== 'sim') window.tab(startTab); }, 100);
+        };
+
+        window.splashReturn = function() {
+            document.getElementById('back-btn').style.display = 'none';
+            const splash = document.getElementById('splash');
+            splash.style.opacity = '1';
+            splash.classList.remove('splash-fade');
+            splash.style.display = 'flex';
+        };
+    })();
     </script>
 </body>
-</html>
